@@ -110,7 +110,7 @@ function render(v){
     <span class="eyebrow">O que o cliente vai usar agora</span>
     <div class="choice">
       <label class="opt ${valeOff?"off":""}"><input type="checkbox" id="c-vale" ${valeOff?"disabled":""}><div><b style="font-weight:500">Crédito do vale</b><div class="muted small">${esc(valeWhy)}</div>
-        <div class="sub" id="valeSub" hidden><div class="field"><label for="c-valor">Valor a descontar (máx. ${fmt(v.saldo)})</label><input id="c-valor" inputmode="decimal" placeholder="0,00"></div></div></div></label>
+        <div class="sub" id="valeSub" hidden><div class="seg"><label><input type="radio" name="vmode" value="all" checked>Saldo todo<br><span class="tiny">${fmt(v.saldo)}</span></label><label><input type="radio" name="vmode" value="part">Outro valor<br><span class="tiny">menos que o saldo</span></label></div><div class="field" id="valorBox" hidden><label for="c-valor">Valor a descontar (máx. ${fmt(v.saldo)})</label><input id="c-valor" inputmode="decimal" placeholder="0,00"></div></div></div></label>
       <label class="opt ${cortOff?"off":""}"><input type="checkbox" id="c-cort" ${cortOff?"disabled":""}><div><b style="font-weight:500">Cortesia</b><div class="muted small">${v.cortesia_usada ? "Já usada: " + esc(v.cortesia_item) : "Só junto com o crédito do vale"}</div>
         <div class="sub" id="cortSub" hidden>
           <div class="seg"><label><input type="radio" name="ctipo" value="Drink" checked>Drink</label><label><input type="radio" name="ctipo" value="Sobremesa">Sobremesa</label></div>
@@ -130,13 +130,16 @@ function render(v){
   cb.addEventListener("change", () => { if (cb.checked && (cv.checked || cc.checked)) { toast("O bônus não entra na mesma comanda do vale."); cb.checked = false; } });
   document.querySelectorAll('input[name="ctipo"]').forEach(r => r.addEventListener("change", () => {
     $("#c-item").innerHTML = (r.value === "Drink" ? DRINKS : DESSERTS).map(d=>`<option>${d}</option>`).join(""); }));
+  document.querySelectorAll('input[name="vmode"]').forEach(r => r.addEventListener("change", () => {
+    $("#valorBox").hidden = r.value !== "part" || !r.checked; if (!$("#valorBox").hidden) $("#c-valor").focus(); }));
   $("#use").addEventListener("submit", e => { e.preventDefault(); review(v); });
 }
 
 function review(v){
   const cv=$("#c-vale").checked, cc=$("#c-cort").checked, cb=$("#c-bonus").checked;
   const com=$("#c-com").value.trim(), att=$("#att").value.trim();
-  const val = parseFloat(($("#c-valor").value||"0").replace(/\./g,"").replace(",", ".")) || 0;
+  const partial = document.querySelector('input[name="vmode"]:checked')?.value === "part";
+  const val = partial ? (parseFloat(($("#c-valor").value||"0").replace(/\./g,"").replace(",", ".")) || 0) : Number(v.saldo);
   if (att.length < 2) return toast("Escreva o seu nome no topo antes de confirmar.");
   if (!cv && !cb) return toast("Marque o que o cliente vai usar.");
   if (cv && val <= 0) return toast("Digite o valor a descontar do vale.");
