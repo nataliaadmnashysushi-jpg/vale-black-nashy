@@ -88,4 +88,4 @@ Os feriados cadastrados vão até o Carnaval de 2027. Feriados municipais de Con
 - Painel: https://vale-black-nashy.netlify.app/painel.html
 - Unidades: https://vale-black-nashy.netlify.app/unidade.html
 
-A Netlify (plano grátis) só publica commits feitos pela conta GitHub do Nashy.
+O repositório é público para a Netlify grátis publicar as atualizações. Não há senhas no código.
