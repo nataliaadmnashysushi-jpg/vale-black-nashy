@@ -81,3 +81,11 @@ A unidade anota numa folha: código do vale, nome do cliente, valor, cortesia ou
 - Mais de um pedido pendente no mesmo telefone.
 
 Os feriados cadastrados vão até o Carnaval de 2027. Feriados municipais de Contagem não estão na lista.
+
+## Endereço do site
+
+- Site: https://vale-black-nashy.netlify.app
+- Painel: https://vale-black-nashy.netlify.app/painel.html
+- Unidades: https://vale-black-nashy.netlify.app/unidade.html
+
+A Netlify (plano grátis) só publica commits feitos pela conta GitHub do Nashy.
