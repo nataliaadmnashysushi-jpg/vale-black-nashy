@@ -36,6 +36,7 @@ const ERRORS = {
   USO_NAO_ENCONTRADO: "Este uso já foi desfeito.",
   COMANDA_COM_VALE: "Esta comanda já tem crédito de vale hoje. O bônus precisa ir em outra comanda, em outra visita.",
   COMANDA_COM_BONUS: "Esta comanda já tem um bônus hoje. O vale não pode entrar na mesma comanda do bônus.",
+  COMPROVANTE_OBRIGATORIO: "Anexe o comprovante do Pix para aprovar.",
   VALE_JA_USADO: "Um dos vales deste pedido já foi usado. Desfaça os usos na aba Usos antes de cancelar, se for o caso.",
 };
 function errMsg(e){

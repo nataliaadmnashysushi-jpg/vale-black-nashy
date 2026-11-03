@@ -37,12 +37,13 @@
     <button role="tab" data-tab="remind" aria-selected="false">Lembretes</button>
     <button role="tab" data-tab="config" aria-selected="false">Configurações</button>
   </div>
-  <div class="toolbar"><input class="input" id="search" placeholder="Buscar por nome, telefone, pedido ou código" style="max-width:420px"><button class="btn sm ghost" type="button" id="export">Exportar planilha</button></div>
+  <div class="toolbar"><input class="input" id="search" placeholder="Buscar por nome, telefone, pedido ou código" style="max-width:420px"><button class="btn sm ghost" type="button" id="export">Exportar planilha</button><button class="btn sm ghost" type="button" id="zip" hidden>Baixar comprovantes (.zip)</button></div>
   <div id="content"></div>
 </main>
 <div id="modal"></div>
 
 <script src="assets/vendor/supabase-2.117.3.js"></script>
+<script src="assets/vendor/jszip-3.10.1.min.js"></script>
 <script src="assets/config.js"></script>
 <script src="assets/common.js"></script>
 <script>
@@ -107,6 +108,7 @@ function orderRows(list, actions){
 
 function render(){
   const c = $("#content"); $("#search").hidden = $("#export").hidden = S.tab === "config";
+  $("#zip").hidden = S.tab !== "orders";
   if (S.tab === "pend") {
     const list = S.orders.filter(o=>o.status==="pendente" && match(o.id,o.nome,o.telefone)).reverse();
     c.innerHTML = `<p class="muted small">Do mais antigo para o mais novo. Confira com o financeiro e aprove só o que caiu na conta.</p>` +
@@ -114,7 +116,7 @@ function render(){
   }
   if (S.tab === "orders") {
     const list = S.orders.filter(o=>match(o.id,o.nome,o.telefone,o.status));
-    c.innerHTML = orderRows(list, o=> o.status==="aprovado" ? `<button class="btn sm ghost" data-resend="${o.id}">Reenviar vale</button><button class="btn sm ghost" data-cancel="${o.id}">Cancelar (desistência)</button>`
+    c.innerHTML = orderRows(list, o=> o.status==="aprovado" ? `${o.receipt_path ? `<button class="btn sm ghost" data-receipt="${o.id}">Ver comprovante</button>` : `<button class="btn sm" data-attach="${o.id}">Anexar comprovante</button>`}<button class="btn sm ghost" data-resend="${o.id}">Reenviar vale</button><button class="btn sm ghost" data-cancel="${o.id}">Cancelar (desistência)</button>`
       : o.status==="pendente" ? `<button class="btn sm ok" data-approve="${o.id}">Aprovar</button>` : "");
   }
   if (S.tab === "vouchers") {
@@ -185,15 +187,79 @@ function ask(text, okLabel, onOk, withNote){
 
 $("#content").addEventListener("click", async e => {
   const b = e.target.closest("button"); if (!b) return;
-  const id = Number(b.dataset.approve || b.dataset.reject || b.dataset.cancel || b.dataset.resend || b.dataset.undo);
+  const id = Number(b.dataset.approve || b.dataset.attach || b.dataset.receipt || b.dataset.reject || b.dataset.cancel || b.dataset.resend || b.dataset.undo);
   const o = S.orders.find(x=>x.id===id);
-  if (b.dataset.approve) ask(`Aprovar o pedido #${id} de ${o.nome}? Confirme que o Pix de ${fmt(o.qty*200)} caiu na conta.`, "Aprovar e gerar vale", async () => {
-    const r = await rpc("approve_order", { p_id:id }); setTimeout(()=>sendModal(o, r.vales), 0); });
+  if (b.dataset.approve) receiptModal(o, true);
+  if (b.dataset.attach) receiptModal(o, false);
+  if (b.dataset.receipt) openReceipt(o);
   if (b.dataset.reject) ask(`Marcar o pedido #${id} como Pix não encontrado? O vale volta para o lote.`, "Marcar", n => rpc("reject_order", { p_id:id, p_note:n }), true);
   if (b.dataset.cancel) ask(`Cancelar o pedido #${id} de ${o.nome}? Os vales ficam bloqueados. Combine a devolução do Pix com o financeiro.`, "Cancelar pedido", n => rpc("cancel_order", { p_id:id, p_note:n }), true);
   if (b.dataset.resend) sendModal(o, S.vouchers.filter(v=>v.order_id===id && v.status==="ativo"));
   if (b.dataset.undo) ask("Desfazer este uso? O saldo, a cortesia ou o bônus voltam para o vale.", "Desfazer", () => rpc("undo_redemption", { p_id:id }));
 });
+
+// ---------- Comprovantes ----------
+const BUCKET = "comprovantes";
+async function shrink(file){                       // foto grande vira JPG de até 1600px
+  if (!file.type.startsWith("image/") || file.size < 400*1024) return file;
+  try {
+    const img = await createImageBitmap(file); const k = Math.min(1, 1600/Math.max(img.width,img.height));
+    const cv = document.createElement("canvas"); cv.width = Math.round(img.width*k); cv.height = Math.round(img.height*k);
+    cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);
+    const blob = await new Promise(r => cv.toBlob(r, "image/jpeg", 0.82));
+    return blob ? new File([blob], file.name.replace(/\.\w+$/,"")+".jpg", { type:"image/jpeg" }) : file;
+  } catch { return file; }
+}
+async function uploadReceipt(o, file){
+  const f = await shrink(file);
+  if (f.size > 5*1024*1024) throw new Error("O arquivo passa de 5 MB. Mande um print menor ou o PDF do banco.");
+  const ext = f.type === "application/pdf" ? "pdf" : f.type === "image/png" ? "png" : f.type === "image/webp" ? "webp" : "jpg";
+  const path = `pedido-${String(o.id).padStart(4,"0")}-${Date.now()}.${ext}`;
+  const { error } = await sb.storage.from(BUCKET).upload(path, f, { contentType: f.type, upsert: false });
+  if (error) throw error;
+  return path;
+}
+function receiptModal(o, approving){
+  $("#modal").innerHTML = `<div class="modal"><div class="card stack">
+    <b style="font-weight:500">${approving ? `Aprovar o pedido #${o.id} de ${esc(o.nome)}` : `Comprovante do pedido #${o.id}`}</b>
+    ${approving ? `<p class="muted small">Confirme que o Pix de ${fmt(o.qty*Number(S.settings.vale_value))} caiu na conta e anexe o comprovante.</p>` : ""}
+    <div class="field"><label for="rc">Comprovante do Pix (foto, print ou PDF)</label><input id="rc" type="file" accept="image/*,application/pdf" class="input"></div>
+    <div class="row" style="justify-content:flex-start"><button class="btn" type="button" id="ok" disabled>${approving ? "Aprovar e gerar vale" : "Salvar comprovante"}</button><button class="btn ghost" type="button" id="no">Voltar</button></div></div></div>`;
+  $("#rc").onchange = () => { $("#ok").disabled = !$("#rc").files.length; };
+  $("#no").onclick = () => { $("#modal").innerHTML = ""; };
+  $("#ok").onclick = async () => {
+    $("#ok").disabled = true; $("#ok").textContent = "Enviando…";
+    try {
+      const path = await uploadReceipt(o, $("#rc").files[0]);
+      if (approving) { const r = await rpc("approve_order", { p_id:o.id, p_receipt:path }); $("#modal").innerHTML = ""; load(); sendModal(o, r.vales); }
+      else { await rpc("set_receipt", { p_id:o.id, p_receipt:path }); $("#modal").innerHTML = ""; toast("Comprovante salvo."); load(); }
+    } catch(e) { toast(errMsg(e)); $("#ok").disabled = false; $("#ok").textContent = approving ? "Aprovar e gerar vale" : "Salvar comprovante"; }
+  };
+}
+async function openReceipt(o){
+  const w = window.open("", "_blank");
+  const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(o.receipt_path, 300);
+  if (error) { w?.close(); return toast(errMsg(error)); }
+  if (w) w.location = data.signedUrl; else location.href = data.signedUrl;
+}
+$("#zip").onclick = async () => {
+  const list = S.orders.filter(o => o.receipt_path && match(o.id,o.nome,o.telefone,o.status));
+  if (!list.length) return toast("Nenhum comprovante para baixar.");
+  const btn = $("#zip"); btn.disabled = true; const zip = new JSZip(); let fails = 0;
+  for (let i = 0; i < list.length; i++) {
+    const o = list[i]; btn.textContent = `Baixando ${i+1} de ${list.length}…`;
+    const { data, error } = await sb.storage.from(BUCKET).download(o.receipt_path);
+    if (error) { fails++; continue; }
+    const nome = o.nome.normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"-").slice(0,40);
+    zip.file(`pedido-${String(o.id).padStart(4,"0")}-${nome}.${o.receipt_path.split(".").pop()}`, data);
+  }
+  const rows = [["Pedido","Identificador Pix","Data","Cliente","Telefone","Vales","Valor","Status","Arquivo"], ...list.map(o=>[o.id,"NSHPED"+o.id,dt(o.created_at),o.nome,o.telefone,o.qty,String(o.qty*Number(S.settings.vale_value)).replace(".",","),o.status,o.receipt_path])];
+  zip.file("lista-de-pedidos.csv", "﻿" + rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g,'""')}"`).join(";")).join("\n"));
+  const blob = await zip.generateAsync({ type:"blob" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `comprovantes-vale-black-${new Date().toISOString().slice(0,10)}.zip`; a.click();
+  btn.disabled = false; btn.textContent = "Baixar comprovantes (.zip)";
+  toast(fails ? `Baixados ${list.length - fails}. ${fails} não abriram.` : `${list.length} comprovantes baixados.`);
+};
 
 $("#export").onclick = () => {
   const d = new Date().toISOString().slice(0,10);
@@ -202,8 +268,8 @@ $("#export").onclick = () => {
   if (S.tab === "vouchers" || S.tab === "remind") return downloadCSV(`vales-${d}.csv`, [["Código","Cliente","Telefone","Saldo","Cortesia","Bônus usado","Validade","Status","Pedido"],
     ...S.vouchers.map(v=>[v.code,v.nome,v.telefone,String(v.saldo).replace(".",","),v.cortesia_item,v.bonus_day||"",v.expires_on,v.status,v.order_id])]);
   const list = S.tab === "pend" ? S.orders.filter(o=>o.status==="pendente") : S.orders;
-  downloadCSV(`pedidos-${d}.csv`, [["Pedido","Identificador Pix","Data","Cliente","Telefone","Aniversário","Unidade","Vales","Valor","Status","Novidades"],
-    ...list.map(o=>[o.id,"NSHPED"+o.id,dt(o.created_at),o.nome,o.telefone,o.aniversario,o.unidade_pref,o.qty,String(o.qty*200).replace(".",","),o.status,o.optin?"sim":"não"])]);
+  downloadCSV(`pedidos-${d}.csv`, [["Pedido","Identificador Pix","Data","Cliente","Telefone","Aniversário","Unidade","Vales","Valor","Status","Novidades","Comprovante"],
+    ...list.map(o=>[o.id,"NSHPED"+o.id,dt(o.created_at),o.nome,o.telefone,o.aniversario,o.unidade_pref,o.qty,String(o.qty*200).replace(".",","),o.status,o.optin?"sim":"não",o.receipt_path?"sim":"não"])]);
 };
 boot();
 </script>

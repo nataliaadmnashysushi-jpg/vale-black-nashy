@@ -57,6 +57,7 @@ create table if not exists orders (
   note         text
 );
 create index if not exists orders_day_idx on orders(sale_day, status);
+alter table orders add column if not exists receipt_path text;   -- comprovante do Pix (Storage)
 
 -- ---------- Vales ----------
 create table if not exists vouchers (
@@ -296,11 +297,13 @@ begin
   return c;
 end $$;
 
-create or replace function approve_order(p_id bigint) returns json
+drop function if exists approve_order(bigint);
+create or replace function approve_order(p_id bigint, p_receipt text) returns json
 language plpgsql security definer set search_path = public as $$
 declare o orders; s settings; out json := '[]'::json; i int; c text; t text; d date := today_br();
 begin
   if not is_admin() then raise exception 'SEM_PERMISSAO'; end if;
+  if length(trim(coalesce(p_receipt,''))) = 0 then raise exception 'COMPROVANTE_OBRIGATORIO'; end if;
   select * into o from orders where id = p_id for update;
   if not found then raise exception 'PEDIDO_NAO_ENCONTRADO'; end if;
   if o.status <> 'pendente' then raise exception 'PEDIDO_JA_DECIDIDO'; end if;
@@ -311,7 +314,7 @@ begin
     insert into vouchers (code, token, order_id, nome, telefone, expires_on, bonus_expires_on, saldo)
     values (c, t, o.id, o.nome, o.telefone, (d + interval '3 months')::date, (d + interval '3 months')::date, s.vale_value);
   end loop;
-  update orders set status = 'aprovado', decided_at = now() where id = p_id;
+  update orders set status = 'aprovado', decided_at = now(), receipt_path = p_receipt where id = p_id;
   select json_agg(json_build_object('code', code, 'token', token) order by code) into out
     from vouchers where order_id = p_id;
   return json_build_object('nome', o.nome, 'telefone', o.telefone, 'vales', out);
@@ -357,12 +360,30 @@ begin
   update redemptions set undone_at = now() where id = p_id;
 end $$;
 
+-- Anexar ou trocar o comprovante de um pedido já aprovado
+create or replace function set_receipt(p_id bigint, p_receipt text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not is_admin() then raise exception 'SEM_PERMISSAO'; end if;
+  if length(trim(coalesce(p_receipt,''))) = 0 then raise exception 'COMPROVANTE_OBRIGATORIO'; end if;
+  update orders set receipt_path = p_receipt where id = p_id;
+end $$;
+
+-- ---------- Comprovantes (Storage privado, só a admin vê) ----------
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('comprovantes', 'comprovantes', false, 5242880, array['image/jpeg','image/png','image/webp','application/pdf'])
+on conflict (id) do nothing;
+drop policy if exists comprovantes_admin on storage.objects;
+create policy comprovantes_admin on storage.objects for all to authenticated
+  using (bucket_id = 'comprovantes' and public.is_admin())
+  with check (bucket_id = 'comprovantes' and public.is_admin());
+
 -- ---------- Permissões das funções ----------
 revoke all on function create_order, sales_status, voucher_public, find_voucher, redeem,
-  approve_order, reject_order, cancel_order, undo_redemption from public;
+  approve_order, reject_order, cancel_order, undo_redemption, set_receipt from public;
 grant execute on function sales_status, create_order, voucher_public to anon, authenticated;
 grant execute on function find_voucher, redeem, approve_order, reject_order, cancel_order,
-  undo_redemption to authenticated;
+  undo_redemption, set_receipt to authenticated;
 grant select on settings, orders, vouchers, redemptions, holidays, profiles to authenticated;
 grant update on settings to authenticated;
 grant insert, delete on holidays to authenticated;
