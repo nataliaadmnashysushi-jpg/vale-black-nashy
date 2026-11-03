@@ -106,6 +106,10 @@ create or replace function my_unit() returns text
 language sql stable security definer set search_path = public as
 $$ select unit_name from profiles where user_id = auth.uid() $$;
 
+create or replace function unit_name_now() returns text
+language sql stable security definer set search_path = public as
+$$ select coalesce(my_unit(), 'Admin') $$;
+
 create or replace function is_admin() returns boolean
 language sql stable security definer set search_path = public as
 $$ select coalesce(my_role() = 'admin', false) $$;
@@ -162,7 +166,7 @@ begin
   perform pg_advisory_xact_lock(4242);          -- uma venda por vez, para não passar do limite
   select * into s from settings where id = 1;
   if d < s.sales_start or d > s.sales_end then raise exception 'FORA_DO_PERIODO'; end if;
-  if exists (select 1 from orders where telefone = tel and status = 'pendente') then
+  if exists (select 1 from orders where telefone = tel and status = 'pendente' and sale_day = d) then
     raise exception 'PEDIDO_PENDENTE';           -- evita alguém segurar vários lotes
   end if;
   select coalesce(sum(qty),0) into used from orders
@@ -245,11 +249,15 @@ begin
 
   if coalesce(p_bonus,false) then
     if valor > 0 or p_cort_item is not null then raise exception 'BONUS_JUNTO_COM_VALE'; end if;
+    if exists (select 1 from redemptions x where x.unit = unit_name_now() and x.day = d and x.comanda = trim(p_comanda)
+               and x.undone_at is null and not x.bonus) then raise exception 'COMANDA_COM_VALE'; end if;
     why := bonus_block_reason(v, d);
     if why is not null then raise exception 'BONUS_BLOQUEADO:%', why; end if;
     update vouchers set bonus_day = d where id = v.id;
   else
     if valor <= 0 and p_cort_item is null then raise exception 'NADA_SELECIONADO'; end if;
+    if exists (select 1 from redemptions x where x.unit = unit_name_now() and x.day = d and x.comanda = trim(p_comanda)
+               and x.undone_at is null and x.bonus) then raise exception 'COMANDA_COM_BONUS'; end if;
     if d > v.expires_on then raise exception 'VALE_VENCIDO'; end if;
     if v.bonus_day = d then raise exception 'BONUS_USADO_HOJE'; end if;
     if valor < 0 or valor > v.saldo then raise exception 'VALOR_ACIMA_DO_SALDO'; end if;
@@ -323,6 +331,8 @@ create or replace function cancel_order(p_id bigint, p_note text) returns void
 language plpgsql security definer set search_path = public as $$
 begin
   if not is_admin() then raise exception 'SEM_PERMISSAO'; end if;
+  if exists (select 1 from redemptions r join vouchers v on v.id = r.voucher_id
+             where v.order_id = p_id and r.undone_at is null) then raise exception 'VALE_JA_USADO'; end if;
   update orders set status = 'cancelado', decided_at = now(), note = p_note where id = p_id;
   update vouchers set status = 'cancelado' where order_id = p_id;
 end $$;

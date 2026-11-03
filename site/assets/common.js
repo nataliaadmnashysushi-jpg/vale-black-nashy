@@ -34,6 +34,9 @@ const ERRORS = {
   CORTESIA_INVALIDA: "Escolha drink ou sobremesa.",
   PEDIDO_JA_DECIDIDO: "Este pedido já foi aprovado ou recusado.",
   USO_NAO_ENCONTRADO: "Este uso já foi desfeito.",
+  COMANDA_COM_VALE: "Esta comanda já tem crédito de vale hoje. O bônus precisa ir em outra comanda, em outra visita.",
+  COMANDA_COM_BONUS: "Esta comanda já tem um bônus hoje. O vale não pode entrar na mesma comanda do bônus.",
+  VALE_JA_USADO: "Um dos vales deste pedido já foi usado. Desfaça os usos na aba Usos antes de cancelar, se for o caso.",
 };
 function errMsg(e){
   const m = (e && (e.message || e.msg)) || String(e);

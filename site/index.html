@@ -160,6 +160,8 @@ $("#signup").addEventListener("submit", async e => {
   if (tel.replace(/\D/g,"").length < 10) return fail("Confira o WhatsApp com DDD.");
   if (!/^\d{2}\/\d{2}$/.test(nasc)) return fail("Escreva o aniversário no formato dd/mm.");
   if (!$("#f-lgpd").checked) return fail("Para continuar, aceite as regras e o uso dos dados.");
+  const pre = status || await rpc("sales_status").catch(() => null);
+  if (pre && !pre.pix_key) return fail("O pagamento por Pix está sendo configurado. Tente de novo em alguns minutos ou fale com a gente no WhatsApp.");
   const btn = $("#goPix"); btn.disabled = true;
   try {
     const r = await rpc("create_order", { p_nome:nome, p_tel:tel, p_aniv:nasc, p_unid:$("#f-unid").value, p_qty:qty, p_optin:$("#f-news").checked, p_lgpd:true });
