@@ -66,9 +66,9 @@ $("#refresh").onclick = () => load();
 
 async function load(){
   const [o, v, u, s] = await Promise.all([
-    sb.from("orders").select("*").order("id", { ascending:false }),
-    sb.from("vouchers").select("*").order("approved_at", { ascending:false }),
-    sb.from("redemptions").select("*, vouchers(code,nome)").order("id", { ascending:false }),
+    fetchAll(() => sb.from("orders").select("*").order("id", { ascending:false })),
+    fetchAll(() => sb.from("vouchers").select("*").order("approved_at", { ascending:false }).order("code")),
+    fetchAll(() => sb.from("redemptions").select("*, vouchers(code,nome)").order("id", { ascending:false })),
     sb.from("settings").select("*").eq("id",1).single()
   ]);
   const err = o.error || v.error || u.error || s.error; if (err) return toast(errMsg(err));
@@ -149,7 +149,7 @@ function render(){
       <div class="field"><label for="s-limit">Vales por dia (lote diário)</label><input id="s-limit" type="number" min="1" value="${s.daily_limit}"></div>
       <div class="row" style="gap:10px"><div class="field" style="flex:1"><label for="s-start">Início das vendas</label><input id="s-start" type="date" value="${s.sales_start}"></div>
         <div class="field" style="flex:1"><label for="s-end">Fim das vendas</label><input id="s-end" type="date" value="${s.sales_end}"></div></div>
-      <div class="field"><label for="s-key">Chave Pix</label><input id="s-key" value="${esc(s.pix_key)}"></div>
+      <div class="field"><label for="s-key">Chave Pix</label><input id="s-key" value="${esc(s.pix_key)}"><span class="muted tiny">Celular: +55 com DDD, sem espaços (ex.: +5531987654321). CPF ou CNPJ: só números. E-mail: tudo minúsculo. Chave aleatória: cole igual ao banco.</span></div>
       <div class="field"><label for="s-name">Nome do titular do Pix</label><input id="s-name" value="${esc(s.pix_name)}"></div>
       <div class="field"><label for="s-city">Cidade do titular</label><input id="s-city" value="${esc(s.pix_city)}"></div>
       <div class="field"><label for="s-wa">WhatsApp que recebe os comprovantes (com 55 e DDD)</label><input id="s-wa" value="${esc(s.whatsapp)}"></div>

@@ -7,7 +7,9 @@
 <meta name="description" content="Compre um vale de R$ 200 no Nashy Sushi e ganhe uma cortesia e R$ 50 de bônus para a próxima visita.">
 <meta property="og:title" content="Vale Black Nashy · Pague R$ 200, leve R$ 250">
 <meta property="og:description" content="+ um drink ou uma sobremesa por nossa conta. Vale em todas as unidades.">
-<meta property="og:image" content="assets/img/mesa.jpg">
+<meta property="og:image" content="https://vale-black-nashy.netlify.app/assets/img/mesa.jpg">
+<meta property="og:url" content="https://vale-black-nashy.netlify.app/">
+<meta property="og:type" content="website">
 <link rel="icon" href="assets/img/logo.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap">
@@ -55,10 +57,7 @@
       <figure><img src="assets/img/drink.jpg" alt="Drink vermelho com morangos" loading="lazy"><figcaption>Um drink</figcaption></figure>
       <figure><img src="assets/img/sobremesa.jpg" alt="Petit gâteau com sorvete" loading="lazy"><figcaption>ou uma sobremesa</figcaption></figure>
     </div>
-    <div class="chips">
-      <span>Saquerinha</span><span>Mojito</span><span>Mojito de maçã verde</span><span>Gin tônica</span><span>Cuba libre</span><span>Aperol Spritz</span><span>Sex on the Beach</span><span>Pôr do Sol</span>
-      <span>Petit gâteau</span><span>Creme de papaia</span><span>Banana flambada</span><span>Sorvete</span>
-    </div>
+    <div class="chips" id="chips"></div>
   </section>
 
   <section>
@@ -182,6 +181,7 @@ $("#signup").addEventListener("submit", async e => {
   finally { btn.disabled = false; }
 });
 
+$("#chips").innerHTML = [...DRINKS, ...DESSERTS].map(x => `<span>${esc(x)}</span>`).join("");
 setQty(1); loadStatus();
 </script>
 </body>

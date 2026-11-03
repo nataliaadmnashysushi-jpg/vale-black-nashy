@@ -48,6 +48,23 @@ function errMsg(e){
   if (/Invalid login/i.test(m)) return "Senha incorreta.";
   return "Algo deu errado. Tente de novo. (" + m + ")";
 }
+// Lê "137,50", "137.50", "1.137,50" ou "50" como número
+function parseMoney(t){
+  let x = String(t||"").trim().replace(/[^\d.,]/g,"");
+  if (x.includes(",")) x = x.replace(/\./g,"").replace(",", ".");
+  else if (/\.\d{3}$/.test(x)) x = x.replace(/\./g,"");
+  const n = Math.round(parseFloat(x) * 100) / 100;
+  return isFinite(n) ? n : 0;
+}
+// Busca todas as linhas, sem o limite de 1000 do Supabase
+async function fetchAll(build){
+  const out = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await build().range(from, from + 999);
+    if (error) return { data: null, error };
+    out.push(...data); if (data.length < 1000) return { data: out, error: null };
+  }
+}
 async function rpc(name, args){ const { data, error } = await sb.rpc(name, args); if (error) throw error; return data; }
 
 function toast(msg){ let t=$("#toast"); if(!t){ t=document.createElement("div"); t.id="toast"; t.className="toast"; t.setAttribute("role","status"); document.body.appendChild(t); }

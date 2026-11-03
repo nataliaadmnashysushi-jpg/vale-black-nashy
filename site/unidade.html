@@ -139,7 +139,7 @@ function review(v){
   const cv=$("#c-vale").checked, cc=$("#c-cort").checked, cb=$("#c-bonus").checked;
   const com=$("#c-com").value.trim(), att=$("#att").value.trim();
   const partial = document.querySelector('input[name="vmode"]:checked')?.value === "part";
-  const val = partial ? (parseFloat(($("#c-valor").value||"0").replace(/\./g,"").replace(",", ".")) || 0) : Number(v.saldo);
+  const val = partial ? parseMoney($("#c-valor").value) : Number(v.saldo);
   if (att.length < 2) return toast("Escreva o seu nome no topo antes de confirmar.");
   if (!cv && !cb) return toast("Marque o que o cliente vai usar.");
   if (cv && val <= 0) return toast("Digite o valor a descontar do vale.");
