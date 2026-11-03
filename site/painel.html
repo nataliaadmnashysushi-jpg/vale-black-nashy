@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Painel Vale Black</title>
+<link rel="icon" href="assets/img/logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main class="view" id="loginView" hidden>
+  <form class="stack" id="login">
+    <img class="brand" src="assets/img/logo.jpg" alt="Nashy Sushi" style="width:140px">
+    <span class="eyebrow">Painel</span>
+    <h2>Vale Black November</h2>
+    <div class="field"><label for="l-mail">E-mail</label><input id="l-mail" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="l-pass">Senha</label><input id="l-pass" type="password" autocomplete="current-password" required></div>
+    <p class="err" id="loginErr" hidden></p>
+    <button class="btn" type="submit">Entrar</button>
+  </form>
+</main>
+
+<main class="view wide" id="app" hidden>
+  <div class="toolbar">
+    <div><span class="eyebrow">Painel</span><h2 style="margin-top:4px">Vales Black November</h2></div>
+    <div class="acts"><button class="btn sm ghost" type="button" id="refresh">Atualizar</button><button class="btn sm ghost" type="button" id="logout">Sair</button></div>
+  </div>
+  <div class="kpis" id="kpis"></div>
+  <div class="tabs" role="tablist">
+    <button role="tab" data-tab="pend" aria-selected="true">Pedidos pendentes</button>
+    <button role="tab" data-tab="orders" aria-selected="false">Todos os pedidos</button>
+    <button role="tab" data-tab="vouchers" aria-selected="false">Vales</button>
+    <button role="tab" data-tab="uses" aria-selected="false">Usos nas unidades</button>
+    <button role="tab" data-tab="remind" aria-selected="false">Lembretes</button>
+    <button role="tab" data-tab="config" aria-selected="false">Configurações</button>
+  </div>
+  <div class="toolbar"><input class="input" id="search" placeholder="Buscar por nome, telefone, pedido ou código" style="max-width:420px"><button class="btn sm ghost" type="button" id="export">Exportar planilha</button></div>
+  <div id="content"></div>
+</main>
+<div id="modal"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/common.js"></script>
+<script>
+const S = { tab:"pend", orders:[], vouchers:[], uses:[], settings:null };
+const dt = iso => new Date(iso).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+const statusPill = s => ({pendente:'<span class="pill warn">Aguardando Pix</span>',aprovado:'<span class="pill ok">Aprovado</span>',recusado:'<span class="pill red">Pix não encontrado</span>',cancelado:'<span class="pill mute">Cancelado</span>'}[s]);
+const siteUrl = () => (S.settings?.site_url || location.origin + location.pathname.replace(/painel\.html$/,"")).replace(/\/?$/,"/");
+
+async function boot(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if (!session) { $("#loginView").hidden = false; $("#app").hidden = true; return; }
+  const { data } = await sb.from("profiles").select("role").eq("user_id", session.user.id).maybeSingle();
+  if (data?.role !== "admin") { await sb.auth.signOut(); $("#loginErr").textContent = "Este acesso não é de administradora."; $("#loginErr").hidden = false; $("#loginView").hidden = false; return; }
+  $("#loginView").hidden = true; $("#app").hidden = false; load();
+}
+$("#login").addEventListener("submit", async e => { e.preventDefault(); $("#loginErr").hidden = true;
+  const { error } = await sb.auth.signInWithPassword({ email: $("#l-mail").value.trim(), password: $("#l-pass").value });
+  if (error) { $("#loginErr").textContent = errMsg(error); $("#loginErr").hidden = false; return; } boot(); });
+$("#logout").onclick = async () => { await sb.auth.signOut(); boot(); };
+$("#refresh").onclick = () => load();
+
+async function load(){
+  const [o, v, u, s] = await Promise.all([
+    sb.from("orders").select("*").order("id", { ascending:false }),
+    sb.from("vouchers").select("*").order("approved_at", { ascending:false }),
+    sb.from("redemptions").select("*, vouchers(code,nome)").order("id", { ascending:false }),
+    sb.from("settings").select("*").eq("id",1).single()
+  ]);
+  const err = o.error || v.error || u.error || s.error; if (err) return toast(errMsg(err));
+  S.orders = o.data; S.vouchers = v.data; S.uses = u.data; S.settings = s.data;
+  renderKpis(); render();
+}
+
+function renderKpis(){
+  const today = new Date().toLocaleDateString("en-CA",{timeZone:"America/Sao_Paulo"});
+  const approved = S.orders.filter(o=>o.status==="aprovado");
+  const cash = approved.reduce((a,o)=>a+o.qty*Number(S.settings.vale_value),0);
+  const usedToday = S.orders.filter(o=>o.sale_day===today && ["pendente","aprovado"].includes(o.status)).reduce((a,o)=>a+o.qty,0);
+  const pend = S.orders.filter(o=>o.status==="pendente");
+  $("#kpis").innerHTML = [
+    ["Vales aprovados", S.vouchers.filter(v=>v.status==="ativo").length],
+    ["Caixa aprovado", fmt(cash)],
+    [`Aguardando Pix · ${fmt(pend.reduce((a,o)=>a+o.qty*200,0))}`, pend.length],
+    ["Lote de hoje", `${usedToday} de ${S.settings.daily_limit}`]
+  ].map(([l,v])=>`<div class="kpi"><b class="num">${v}</b><span>${l}</span></div>`).join("");
+}
+
+document.querySelector(".tabs").addEventListener("click", e => { const b=e.target.closest("[data-tab]"); if(!b) return;
+  S.tab=b.dataset.tab; document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected", x===b)); render(); });
+$("#search").addEventListener("input", render);
+const match = (...vals) => { const q=$("#search").value.trim().toLowerCase(); return !q || vals.some(v=>String(v??"").toLowerCase().includes(q)); };
+
+function orderRows(list, actions){
+  return `<div class="tablewrap"><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Vales</th><th>Valor do Pix</th><th>Status</th><th>Ações</th></tr></thead><tbody>${
+    list.length ? list.map(o=>`<tr><td class="num">#${o.id}<div class="muted tiny">${dt(o.created_at)}</div></td>
+      <td>${esc(o.nome)}<div class="muted tiny num">${fmtPhone(o.telefone)} · ${esc(o.unidade_pref)} · aniv. ${esc(o.aniversario)}</div></td>
+      <td class="num">${o.qty}</td><td class="num">${fmt(o.qty*Number(S.settings.vale_value))}<div class="muted tiny">id NSHPED${o.id}</div></td>
+      <td>${statusPill(o.status)}${o.note?`<div class="muted tiny">${esc(o.note)}</div>`:""}</td>
+      <td><div class="acts">${actions(o)}</div></td></tr>`).join("")
+    : `<tr><td colspan="6" class="muted">Nada por aqui.</td></tr>`}</tbody></table></div>`;
+}
+
+function render(){
+  const c = $("#content"); $("#search").hidden = $("#export").hidden = S.tab === "config";
+  if (S.tab === "pend") {
+    const list = S.orders.filter(o=>o.status==="pendente" && match(o.id,o.nome,o.telefone)).reverse();
+    c.innerHTML = `<p class="muted small">Do mais antigo para o mais novo. Confira com o financeiro e aprove só o que caiu na conta.</p>` +
+      orderRows(list, o=>`<button class="btn sm ok" data-approve="${o.id}">Pix confirmado: aprovar</button><button class="btn sm ghost" data-reject="${o.id}">Pix não encontrado</button>`);
+  }
+  if (S.tab === "orders") {
+    const list = S.orders.filter(o=>match(o.id,o.nome,o.telefone,o.status));
+    c.innerHTML = orderRows(list, o=> o.status==="aprovado" ? `<button class="btn sm ghost" data-resend="${o.id}">Reenviar vale</button><button class="btn sm ghost" data-cancel="${o.id}">Cancelar (desistência)</button>`
+      : o.status==="pendente" ? `<button class="btn sm ok" data-approve="${o.id}">Aprovar</button>` : "");
+  }
+  if (S.tab === "vouchers") {
+    const list = S.vouchers.filter(v=>match(v.code,v.nome,v.telefone));
+    c.innerHTML = `<div class="tablewrap"><table><thead><tr><th>Código</th><th>Cliente</th><th>Saldo</th><th>Cortesia</th><th>Bônus</th><th>Validade</th><th>Pedido</th></tr></thead><tbody>${
+      list.map(v=>`<tr><td class="num"><b style="font-weight:500">${esc(v.code)}</b>${v.status!=="ativo"?' <span class="pill mute">Cancelado</span>':""}</td>
+        <td>${esc(v.nome)}<div class="muted tiny num">${fmtPhone(v.telefone)}</div></td><td class="num">${fmt(v.saldo)}</td>
+        <td>${v.cortesia_item?`<span class="pill mute">${esc(v.cortesia_item)}</span>`:'<span class="pill ok">Livre</span>'}</td>
+        <td>${v.bonus_day?`<span class="pill mute">Usado ${brDate(v.bonus_day).slice(0,5)}</span>`:'<span class="pill ok">Livre</span>'}</td>
+        <td class="num">${brDate(v.expires_on)}</td><td class="num">#${v.order_id}</td></tr>`).join("") || '<tr><td colspan="7" class="muted">Nenhum vale ainda.</td></tr>'}</tbody></table></div>`;
+  }
+  if (S.tab === "uses") {
+    const list = S.uses.filter(u=>match(u.vouchers?.code,u.vouchers?.nome,u.unit,u.atendente,u.comanda));
+    c.innerHTML = `<div class="tablewrap"><table><thead><tr><th>Quando</th><th>Unidade</th><th>Atendente</th><th>Vale</th><th>Uso</th><th>Comanda</th><th></th></tr></thead><tbody>${
+      list.map(u=>`<tr style="${u.undone_at?"opacity:.5":""}"><td class="num">${dt(u.created_at)}</td><td>${esc(u.unit)}</td><td>${esc(u.atendente)}</td>
+        <td class="num">${esc(u.vouchers?.code)}<div class="muted tiny">${esc(u.vouchers?.nome)}</div></td>
+        <td>${[Number(u.valor)>0?"Vale "+fmt(u.valor):"", u.cortesia_item?"cortesia "+esc(u.cortesia_item):"", u.bonus?"Bônus R$ 50,00":""].filter(Boolean).join(" + ")}</td>
+        <td class="num">${esc(u.comanda)}</td><td>${u.undone_at?'<span class="pill mute">Desfeito</span>':`<button class="btn sm ghost" data-undo="${u.id}">Desfazer</button>`}</td></tr>`).join("") || '<tr><td colspan="7" class="muted">Nenhum uso ainda.</td></tr>'}</tbody></table></div>`;
+  }
+  if (S.tab === "remind") {
+    const today = new Date(); const days = d => Math.ceil((new Date(d+"T12:00") - today)/864e5);
+    const list = S.vouchers.filter(v=>v.status==="ativo" && (Number(v.saldo)>0 || !v.bonus_day) && days(v.expires_on) >= 0 && days(v.expires_on) <= 30 && match(v.code,v.nome));
+    c.innerHTML = `<p class="muted small">Vales que vencem nos próximos 30 dias e ainda têm saldo ou bônus.</p><div class="tablewrap"><table><thead><tr><th>Código</th><th>Cliente</th><th>Falta usar</th><th>Vence</th><th></th></tr></thead><tbody>${
+      list.map(v=>{ const falta=[Number(v.saldo)>0?fmt(v.saldo)+" de saldo":"", !v.bonus_day?"bônus de R$ 50":""].filter(Boolean).join(" e ");
+        const msg=`Oi, ${v.nome.split(" ")[0]}! Passando para lembrar que o seu Vale Black Nashy (${v.code}) vence em ${brDate(v.expires_on)}. Ainda tem ${falta} para usar. Quando vem nos visitar?`;
+        return `<tr><td class="num">${esc(v.code)}</td><td>${esc(v.nome)}</td><td>${esc(falta)}</td><td class="num">${brDate(v.expires_on)} <span class="pill ${days(v.expires_on)<=7?"red":"warn"}">${days(v.expires_on)} dias</span></td>
+        <td><a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/${waNumber(v.telefone)}?text=${encodeURIComponent(msg)}">Lembrar no WhatsApp</a></td></tr>`; }).join("") || '<tr><td colspan="5" class="muted">Nenhum vale vencendo nos próximos 30 dias.</td></tr>'}</tbody></table></div>`;
+  }
+  if (S.tab === "config") {
+    const s = S.settings;
+    c.innerHTML = `<form id="cfg" class="stack" style="max-width:520px">
+      <div class="field"><label for="s-limit">Vales por dia (lote diário)</label><input id="s-limit" type="number" min="1" value="${s.daily_limit}"></div>
+      <div class="row" style="gap:10px"><div class="field" style="flex:1"><label for="s-start">Início das vendas</label><input id="s-start" type="date" value="${s.sales_start}"></div>
+        <div class="field" style="flex:1"><label for="s-end">Fim das vendas</label><input id="s-end" type="date" value="${s.sales_end}"></div></div>
+      <div class="field"><label for="s-key">Chave Pix</label><input id="s-key" value="${esc(s.pix_key)}"></div>
+      <div class="field"><label for="s-name">Nome do titular do Pix</label><input id="s-name" value="${esc(s.pix_name)}"></div>
+      <div class="field"><label for="s-city">Cidade do titular</label><input id="s-city" value="${esc(s.pix_city)}"></div>
+      <div class="field"><label for="s-wa">WhatsApp que recebe os comprovantes (com 55 e DDD)</label><input id="s-wa" value="${esc(s.whatsapp)}"></div>
+      <div class="field"><label for="s-url">Endereço do site (para os links dos vales)</label><input id="s-url" placeholder="${esc(location.origin)}/" value="${esc(s.site_url)}"></div>
+      <button class="btn" type="submit">Salvar configurações</button></form>`;
+    $("#cfg").addEventListener("submit", async e => { e.preventDefault();
+      const { error } = await sb.from("settings").update({ daily_limit:+$("#s-limit").value, sales_start:$("#s-start").value, sales_end:$("#s-end").value,
+        pix_key:$("#s-key").value.trim(), pix_name:$("#s-name").value.trim(), pix_city:$("#s-city").value.trim(), whatsapp:$("#s-wa").value.replace(/\D/g,""), site_url:$("#s-url").value.trim() }).eq("id",1);
+      if (error) return toast(errMsg(error)); toast("Configurações salvas."); load(); });
+  }
+}
+
+function voucherMessage(nome, vales){
+  const first = nome.split(" ")[0];
+  const links = vales.map(v=>`${v.code}: ${siteUrl()}vale.html?t=${v.token}`).join("\n");
+  return `Oi, ${first}! Seu Vale Black Nashy está aprovado.\n\n${vales.length>1?"Seus vales":"Seu vale"}:\n${links}\n\nAbra o link e mostre no caixa. Na visita em que usar o vale, escolha a sua cortesia: um drink ou uma sobremesa. O bônus de R$ 50 fica para outra visita, de segunda a quinta. Validade de 3 meses.\n\nTe esperamos!`;
+}
+function sendModal(o, vales){
+  const msg = voucherMessage(o.nome, vales);
+  $("#modal").innerHTML = `<div class="modal"><div class="card stack"><div class="row"><b style="font-weight:500">Vale(s) do pedido #${o.id}</b><span class="pill ok">Aprovado</span></div>
+    <p class="muted small" style="white-space:pre-wrap">${esc(msg)}</p>
+    <a class="btn" target="_blank" rel="noopener" href="https://wa.me/${waNumber(o.telefone)}?text=${encodeURIComponent(msg)}">Enviar no WhatsApp</a>
+    <button class="btn ghost" type="button" id="cp">Copiar mensagem</button><button class="btn ghost" type="button" id="close">Fechar</button></div></div>`;
+  $("#cp").onclick = () => copyText(msg); $("#close").onclick = () => { $("#modal").innerHTML = ""; };
+}
+function ask(text, okLabel, onOk, withNote){
+  $("#modal").innerHTML = `<div class="modal"><div class="card stack"><b style="font-weight:500">${esc(text)}</b>
+    ${withNote?'<div class="field"><label for="note">Observação (opcional)</label><input id="note"></div>':""}
+    <div class="row" style="justify-content:flex-start"><button class="btn" type="button" id="ok">${esc(okLabel)}</button><button class="btn ghost" type="button" id="no">Voltar</button></div></div></div>`;
+  $("#no").onclick = () => { $("#modal").innerHTML = ""; };
+  $("#ok").onclick = async () => { $("#ok").disabled = true; try { await onOk($("#note")?.value || null); $("#modal").innerHTML = ""; load(); } catch(e) { toast(errMsg(e)); $("#ok").disabled = false; } };
+}
+
+$("#content").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const id = Number(b.dataset.approve || b.dataset.reject || b.dataset.cancel || b.dataset.resend || b.dataset.undo);
+  const o = S.orders.find(x=>x.id===id);
+  if (b.dataset.approve) ask(`Aprovar o pedido #${id} de ${o.nome}? Confirme que o Pix de ${fmt(o.qty*200)} caiu na conta.`, "Aprovar e gerar vale", async () => {
+    const r = await rpc("approve_order", { p_id:id }); setTimeout(()=>sendModal(o, r.vales), 0); });
+  if (b.dataset.reject) ask(`Marcar o pedido #${id} como Pix não encontrado? O vale volta para o lote.`, "Marcar", n => rpc("reject_order", { p_id:id, p_note:n }), true);
+  if (b.dataset.cancel) ask(`Cancelar o pedido #${id} de ${o.nome}? Os vales ficam bloqueados. Combine a devolução do Pix com o financeiro.`, "Cancelar pedido", n => rpc("cancel_order", { p_id:id, p_note:n }), true);
+  if (b.dataset.resend) sendModal(o, S.vouchers.filter(v=>v.order_id===id && v.status==="ativo"));
+  if (b.dataset.undo) ask("Desfazer este uso? O saldo, a cortesia ou o bônus voltam para o vale.", "Desfazer", () => rpc("undo_redemption", { p_id:id }));
+});
+
+$("#export").onclick = () => {
+  const d = new Date().toISOString().slice(0,10);
+  if (S.tab === "uses") return downloadCSV(`usos-${d}.csv`, [["Quando","Unidade","Atendente","Código","Cliente","Valor","Cortesia","Bônus","Comanda","Desfeito"],
+    ...S.uses.map(u=>[dt(u.created_at),u.unit,u.atendente,u.vouchers?.code,u.vouchers?.nome,String(u.valor).replace(".",","),u.cortesia_item,u.bonus?"sim":"",u.comanda,u.undone_at?"sim":""])]);
+  if (S.tab === "vouchers" || S.tab === "remind") return downloadCSV(`vales-${d}.csv`, [["Código","Cliente","Telefone","Saldo","Cortesia","Bônus usado","Validade","Status","Pedido"],
+    ...S.vouchers.map(v=>[v.code,v.nome,v.telefone,String(v.saldo).replace(".",","),v.cortesia_item,v.bonus_day||"",v.expires_on,v.status,v.order_id])]);
+  const list = S.tab === "pend" ? S.orders.filter(o=>o.status==="pendente") : S.orders;
+  downloadCSV(`pedidos-${d}.csv`, [["Pedido","Identificador Pix","Data","Cliente","Telefone","Aniversário","Unidade","Vales","Valor","Status","Novidades"],
+    ...list.map(o=>[o.id,"NSHPED"+o.id,dt(o.created_at),o.nome,o.telefone,o.aniversario,o.unidade_pref,o.qty,String(o.qty*200).replace(".",","),o.status,o.optin?"sim":"não"])]);
+};
+boot();
+</script>
+</body>
+</html>

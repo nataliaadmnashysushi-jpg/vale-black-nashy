@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vale Black Nashy · Pague R$ 200, leve R$ 250</title>
+<meta name="description" content="Compre um vale de R$ 200 no Nashy Sushi e ganhe uma cortesia e R$ 50 de bônus para a próxima visita.">
+<meta property="og:title" content="Vale Black Nashy · Pague R$ 200, leve R$ 250">
+<meta property="og:description" content="+ um drink ou uma sobremesa por nossa conta. Vale em todas as unidades.">
+<meta property="og:image" content="assets/img/mesa.jpg">
+<link rel="icon" href="assets/img/logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<main id="venda" class="view">
+  <section class="hero">
+    <img class="brand" src="assets/img/logo.jpg" alt="Nashy Sushi">
+    <span class="eyebrow">Black November · até <span id="endDate">27/11</span></span>
+    <h1>Pague R$ 200,<br><span>leve R$ 250</span></h1>
+    <p style="font-size:18px;font-weight:400">+ um drink ou uma sobremesa <span class="gold">por nossa conta</span></p>
+    <p class="muted">Use o vale de R$ 200 com a sua cortesia já na primeira visita. Os R$ 50 de bônus ficam para você voltar.</p>
+  </section>
+  <img class="photo" src="assets/img/mesa.jpg" alt="Mesa do Nashy com sushis, pratos quentes e drinks" width="1200" height="800">
+
+  <div class="offer">
+    <div class="card"><div class="v">R$ 200</div><div class="muted tiny">vale + cortesia</div></div>
+    <div class="plus">+</div>
+    <div class="card"><div class="v red">R$ 50</div><div class="muted tiny">bônus próxima visita</div></div>
+  </div>
+
+  <div class="card stack" id="lotCard" style="gap:8px">
+    <div class="row"><b style="font-weight:500">Lote de hoje</b><span class="num" id="lotLeft">carregando…</span></div>
+    <div class="bar"><i id="lotBar" style="width:0%"></i></div>
+    <span class="muted tiny" id="lotNote">Quando os vales do dia acabam, o próximo lote abre amanhã.</span>
+  </div>
+
+  <button class="btn" type="button" data-go="cadastro">Garantir meu vale</button>
+
+  <section class="stack">
+    <span class="eyebrow">Como funciona</span>
+    <ul class="list">
+      <li><span>Use o vale no que quiser: rodízio, drinks, sobremesas, qualquer item da sua comanda.</span></li>
+      <li><span>O vale vem com uma cortesia: um drink ou uma sobremesa da lista, na visita em que você usar o vale.</span></li>
+      <li><span>Os R$ 50 de bônus ficam para outra visita, de segunda a quinta.</span></li>
+      <li><span>Vale em todas as unidades: Savassi, Lourdes, São Pedro e Contagem.</span></li>
+    </ul>
+  </section>
+
+  <section class="stack">
+    <span class="eyebrow">Cortesia: escolha 1</span>
+    <div class="duo">
+      <figure><img src="assets/img/drink.jpg" alt="Drink vermelho com morangos" loading="lazy"><figcaption>Um drink</figcaption></figure>
+      <figure><img src="assets/img/sobremesa.jpg" alt="Petit gâteau com sorvete" loading="lazy"><figcaption>ou uma sobremesa</figcaption></figure>
+    </div>
+    <div class="chips">
+      <span>Saquerinha</span><span>Mojito</span><span>Mojito de maçã verde</span><span>Gin tônica</span><span>Cuba libre</span><span>Aperol Spritz</span><span>Sex on the Beach</span><span>Pôr do Sol</span>
+      <span>Petit gâteau</span><span>Creme de papaia</span><span>Banana flambada</span><span>Sorvete</span>
+    </div>
+  </section>
+
+  <section>
+    <span class="eyebrow">Regras</span>
+    <details open><summary>Validade</summary><p>O vale, a cortesia e o bônus valem por 3 meses a partir da aprovação da compra.</p></details>
+    <details><summary>Bônus em outra visita</summary><p>O bônus de R$ 50 vale de segunda a quinta, exceto feriados. Ele não pode ser usado no mesmo dia nem na mesma comanda do vale, e é usado de uma vez só.</p></details>
+    <details><summary>Mais de um bônus na mesma mesa</summary><p>Cada bônus precisa de um rodízio na comanda. Dois bônus na mesma mesa só com dois ou mais rodízios.</p></details>
+    <details><summary>Saldo</summary><p>Se a conta der menos que o vale, o saldo fica guardado no mesmo vale para a próxima visita, dentro da validade. O vale não é trocado por dinheiro.</p></details>
+    <details><summary>Quantos vales posso comprar</summary><p>Até 4 vales por compra. Cada vale tem o seu código e a sua cortesia.</p></details>
+    <details><summary>Quando recebo o vale</summary><p>Depois que confirmamos o seu Pix, você recebe o vale no WhatsApp em até 1 dia útil.</p></details>
+    <details><summary>Não é reserva</summary><p>O vale não garante mesa. Reservas só na Savassi, para grupos de 6 ou mais.</p></details>
+    <details><summary>Desistência</summary><p>Você pode desistir da compra em até 7 dias pelo nosso WhatsApp, desde que o vale não tenha sido usado.</p></details>
+  </section>
+
+  <button class="btn" type="button" data-go="cadastro">Garantir meu vale</button>
+</main>
+
+<main id="cadastro" class="view" hidden>
+  <div class="stack" id="formStep">
+    <button type="button" class="muted small" data-go="venda" style="background:none;border:0;text-align:left;padding:0;color:var(--muted)">← Voltar</button>
+    <h2>Seus dados</h2>
+    <p class="muted">Usamos esses dados para enviar o seu vale no WhatsApp.</p>
+    <form id="signup" class="stack" novalidate>
+      <div class="field"><label for="f-nome">Nome completo</label><input id="f-nome" required autocomplete="name"></div>
+      <div class="field"><label for="f-tel">WhatsApp com DDD</label><input id="f-tel" required inputmode="tel" autocomplete="tel" placeholder="(31) 98765-4321"></div>
+      <div class="field"><label for="f-nasc">Data de aniversário</label><input id="f-nasc" required inputmode="numeric" placeholder="dd/mm" maxlength="5"></div>
+      <div class="field"><label for="f-unid">Unidade preferida</label>
+        <select id="f-unid"><option>Savassi</option><option>Lourdes</option><option>São Pedro</option><option>Contagem</option></select></div>
+      <div class="card qty">
+        <span>Quantidade de vales<br><span class="muted tiny">até 4 por compra</span></span>
+        <div><button type="button" id="qMinus" aria-label="Menos um vale">−</button><b class="num" id="qVal" style="font-size:20px">1</b><button type="button" id="qPlus" aria-label="Mais um vale">+</button></div>
+      </div>
+      <label class="check"><input type="checkbox" id="f-lgpd"><span>Li as regras e aceito que o Nashy use meus dados para enviar e controlar o vale.</span></label>
+      <label class="check"><input type="checkbox" id="f-news"><span>Quero receber novidades e ofertas do Nashy no WhatsApp.</span></label>
+      <p class="err" id="formErr" hidden></p>
+      <button class="btn" type="submit" id="goPix">Continuar para o Pix · <span class="num" id="qTotal">R$ 200,00</span></button>
+      <p class="muted tiny">Seus dados são usados só para o vale e, se você marcar, para novidades do Nashy. Para pedir a exclusão, fale com a gente no WhatsApp.</p>
+    </form>
+  </div>
+
+  <div class="stack" id="pixStep" hidden>
+    <span class="eyebrow">Pedido <span id="orderNo"></span> reservado</span>
+    <h2>Agora é só pagar o Pix</h2>
+    <div class="card stack">
+      <div class="row"><span class="muted">Valor do Pix</span><b class="num" id="pixTotal" style="font-size:20px;font-weight:600"></b></div>
+      <button class="btn" type="button" id="copyPix">Copiar Pix copia e cola</button>
+      <div class="qrbox" id="pixQr" aria-label="QR code do Pix"></div>
+      <span class="muted tiny" style="text-align:center">Ou pague pela chave:</span>
+      <div class="pixkey"><code id="pixKey"></code><button class="btn sm ghost" type="button" id="copyKey">Copiar</button></div>
+      <span class="muted tiny" id="pixName"></span>
+    </div>
+    <ol class="steps">
+      <li><span>Faça o Pix no app do seu banco, no valor exato.</span></li>
+      <li><span>Envie o comprovante no nosso WhatsApp pelo botão abaixo.</span></li>
+      <li><span>Em até 1 dia útil você recebe o seu vale no WhatsApp.</span></li>
+    </ol>
+    <a class="btn" id="waBtn" target="_blank" rel="noopener">Enviar comprovante no WhatsApp</a>
+    <p class="muted tiny" style="text-align:center">Se o Pix não for encontrado em 24 horas, o pedido é cancelado e o vale volta para o lote.</p>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/common.js"></script>
+<script>
+let status = null, qty = 1;
+function show(id){ document.querySelectorAll("main").forEach(m => m.hidden = m.id !== id); window.scrollTo(0,0); }
+document.addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (!b) return;
+  if (b.dataset.go === "cadastro" && status && !status.open) { toast(closedMsg()); return; }
+  show(b.dataset.go); });
+
+function closedMsg(){
+  if (status.before) return `As vendas abrem em ${brDate(status.start)}.`;
+  if (status.after) return "As vendas do Vale Black terminaram.";
+  return "Os vales de hoje acabaram. Um novo lote abre amanhã.";
+}
+async function loadStatus(){
+  try {
+    status = await rpc("sales_status");
+    $("#endDate").textContent = brDate(status.end).slice(0,5);
+    const left = status.remaining, lim = status.limit;
+    $("#lotLeft").textContent = status.open ? `restam ${left} de ${lim}` : (status.before ? `abre em ${brDate(status.start).slice(0,5)}` : status.after ? "encerrado" : "esgotado hoje");
+    $("#lotBar").style.width = (status.open ? Math.round((lim-left)/lim*100) : 100) + "%";
+    if (!status.open) { $("#lotNote").textContent = closedMsg(); document.querySelectorAll('[data-go="cadastro"]').forEach(b => b.textContent = status.after ? "Vendas encerradas" : (status.before ? "Vendas abrem em breve" : "Esgotado hoje · volte amanhã")); }
+  } catch(e) { $("#lotLeft").textContent = ""; }
+}
+
+function setQty(n){ qty = Math.max(1, Math.min(4, n)); $("#qVal").textContent = qty; $("#qTotal").textContent = fmt(200*qty); }
+$("#qMinus").onclick = () => setQty(qty-1); $("#qPlus").onclick = () => setQty(qty+1);
+$("#f-nasc").addEventListener("input", e => { let d=e.target.value.replace(/\D/g,"").slice(0,4); e.target.value = d.length>2 ? d.slice(0,2)+"/"+d.slice(2) : d; });
+
+$("#signup").addEventListener("submit", async e => {
+  e.preventDefault();
+  const err = $("#formErr"); err.hidden = true;
+  const nome = $("#f-nome").value.trim(), tel = $("#f-tel").value.trim(), nasc = $("#f-nasc").value.trim();
+  const fail = m => { err.textContent = m; err.hidden = false; };
+  if (nome.split(/\s+/).length < 2) return fail("Escreva o seu nome completo.");
+  if (tel.replace(/\D/g,"").length < 10) return fail("Confira o WhatsApp com DDD.");
+  if (!/^\d{2}\/\d{2}$/.test(nasc)) return fail("Escreva o aniversário no formato dd/mm.");
+  if (!$("#f-lgpd").checked) return fail("Para continuar, aceite as regras e o uso dos dados.");
+  const btn = $("#goPix"); btn.disabled = true;
+  try {
+    const r = await rpc("create_order", { p_nome:nome, p_tel:tel, p_aniv:nasc, p_unid:$("#f-unid").value, p_qty:qty, p_optin:$("#f-news").checked, p_lgpd:true });
+    const s = status || await rpc("sales_status");
+    const txid = "NSHPED" + r.id;
+    const payload = pixPayload({ key:s.pix_key, name:s.pix_name, city:s.pix_city, amount:r.total, txid });
+    $("#orderNo").textContent = "#" + r.id;
+    $("#pixTotal").textContent = fmt(r.total);
+    $("#pixKey").textContent = s.pix_key;
+    $("#pixName").textContent = "Titular: " + s.pix_name;
+    $("#copyPix").onclick = () => copyText(payload);
+    $("#copyKey").onclick = () => copyText(s.pix_key);
+    $("#pixQr").innerHTML = ""; new QRCode($("#pixQr"), { text: payload, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
+    const msg = `Olá! Segue o comprovante do Pix do Vale Black Nashy.\nPedido #${r.id} · ${nome} · ${qty} vale(s) · ${fmt(r.total)}`;
+    $("#waBtn").href = `https://wa.me/${s.whatsapp}?text=${encodeURIComponent(msg)}`;
+    $("#formStep").hidden = true; $("#pixStep").hidden = false; window.scrollTo(0,0);
+  } catch(ex) { fail(errMsg(ex)); loadStatus(); }
+  finally { btn.disabled = false; }
+});
+
+setQty(1); loadStatus();
+</script>
+</body>
+</html>

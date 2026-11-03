@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Validar Vale Black · Unidades</title>
+<link rel="icon" href="assets/img/logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main class="view">
+  <form class="stack" id="login" hidden>
+    <img class="brand" src="assets/img/logo.jpg" alt="Nashy Sushi" style="width:140px">
+    <span class="eyebrow">Acesso da unidade</span>
+    <h2>Validar Vale Black</h2>
+    <div class="field"><label for="l-unid">Unidade</label><select id="l-unid"><option>Savassi</option><option>Lourdes</option><option>São Pedro</option><option>Contagem</option></select></div>
+    <div class="field"><label for="l-pass">Senha da unidade</label><input id="l-pass" type="password" autocomplete="current-password" required></div>
+    <p class="err" id="loginErr" hidden></p>
+    <button class="btn" type="submit">Entrar</button>
+  </form>
+
+  <div class="stack" id="main" hidden>
+    <div class="row"><div><span class="eyebrow" id="unitName"></span><div class="muted tiny" id="today"></div></div>
+      <button class="btn sm ghost" type="button" id="logout">Sair</button></div>
+    <div class="field"><label for="att">Seu nome (atendente)</label><input id="att" autocomplete="off"></div>
+    <div class="row" style="gap:8px">
+      <input class="input" id="code" aria-label="Código do vale" placeholder="NSH-XXXXX" autocomplete="off" style="flex:1;min-width:0;text-transform:uppercase">
+      <button class="btn sm" type="button" id="find" style="padding:13px 16px">Buscar</button>
+    </div>
+    <button class="btn ghost" type="button" id="scan">Ler QR code</button>
+    <div id="reader" hidden></div>
+    <div id="result" class="stack"></div>
+  </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/common.js"></script>
+<script>
+let me = null, scanner = null;
+const store = { get:k=>{try{return localStorage.getItem(k)}catch{return null}}, set:(k,v)=>{try{localStorage.setItem(k,v)}catch{}} };
+
+async function boot(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if (!session) { $("#login").hidden = false; $("#main").hidden = true; return; }
+  const { data } = await sb.from("profiles").select("role,unit_name").eq("user_id", session.user.id).maybeSingle();
+  if (!data) { await sb.auth.signOut(); $("#login").hidden = false; return; }
+  me = data;
+  $("#unitName").textContent = data.unit_name || "Admin";
+  $("#today").textContent = new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"2-digit"});
+  $("#att").value = store.get("atendente") || "";
+  $("#login").hidden = true; $("#main").hidden = false;
+}
+$("#login").addEventListener("submit", async e => {
+  e.preventDefault(); const err = $("#loginErr"); err.hidden = true;
+  const { error } = await sb.auth.signInWithPassword({ email: CFG.UNIT_EMAILS[$("#l-unid").value], password: $("#l-pass").value });
+  if (error) { err.textContent = errMsg(error); err.hidden = false; return; }
+  $("#l-pass").value = ""; boot();
+});
+$("#logout").onclick = async () => { await sb.auth.signOut(); $("#result").innerHTML = ""; boot(); };
+$("#att").addEventListener("change", e => store.set("atendente", e.target.value.trim()));
+$("#find").onclick = () => findVoucher($("#code").value);
+$("#code").addEventListener("keydown", e => { if (e.key === "Enter") findVoucher($("#code").value); });
+
+$("#scan").onclick = async () => {
+  const box = $("#reader");
+  if (scanner) { await scanner.stop().catch(()=>{}); scanner = null; box.hidden = true; $("#scan").textContent = "Ler QR code"; return; }
+  box.hidden = false; $("#scan").textContent = "Fechar câmera";
+  scanner = new Html5Qrcode("reader");
+  try {
+    await scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 220 }, async text => {
+      await scanner.stop().catch(()=>{}); scanner = null; box.hidden = true; $("#scan").textContent = "Ler QR code";
+      $("#code").value = text.trim(); findVoucher(text);
+    });
+  } catch { toast("Não foi possível abrir a câmera. Libere a câmera para este site ou digite o código."); box.hidden = true; scanner = null; $("#scan").textContent = "Ler QR code"; }
+};
+
+async function findVoucher(code){
+  const out = $("#result"); code = String(code||"").trim().toUpperCase();
+  if (!code) return toast("Digite o código do vale.");
+  if (!code.startsWith("NSH-") && code.length === 5) code = "NSH-" + code;
+  out.innerHTML = '<p class="muted">Buscando…</p>';
+  let v;
+  try { v = await rpc("find_voucher", { p_code: code }); } catch(e) { out.innerHTML = `<p class="err">${esc(errMsg(e))}</p>`; return; }
+  if (!v) { out.innerHTML = `<div class="card"><span class="pill red">Não encontrado</span><p class="muted" style="margin-top:8px">Confira o código. Se o cliente tiver só um print, peça o link do vale que ele recebeu no WhatsApp.</p></div>`; return; }
+  render(v);
+}
+
+function render(v){
+  const out = $("#result");
+  const cancelled = v.status !== "ativo";
+  const valeOff = cancelled || v.vencido || v.saldo <= 0 || !!v.vale_bloqueio;
+  const valeWhy = cancelled ? "Vale cancelado" : v.vencido ? "Vale vencido" : v.saldo <= 0 ? "Sem saldo" : v.vale_bloqueio || ("Saldo " + fmt(v.saldo));
+  const cortOff = valeOff || v.cortesia_usada;
+  const bonusOff = !!v.bonus_bloqueio;
+  const pill = cancelled ? '<span class="pill red">Cancelado</span>' : v.vencido ? '<span class="pill red">Vencido</span>' : `<span class="pill ok">Válido até ${brDate(v.expires_on).slice(0,5)}</span>`;
+  out.innerHTML = `
+  <div class="card stack">
+    <div class="row"><div><b class="num" style="font-weight:500">${esc(v.code)}</b><div class="muted small">${esc(v.nome)}</div></div>${pill}</div>
+    <div class="balance">
+      <div class="card"><span>Saldo do vale</span><b class="num">${fmt(v.saldo)}</b></div>
+      <div class="card"><span>Cortesia</span><b>${v.cortesia_usada ? "Usada" : "Livre"}</b></div>
+      <div class="card"><span>Bônus R$ 50</span><b>${v.bonus_usado ? "Usado" : bonusOff ? "Bloqueado" : "Livre"}</b></div>
+    </div>
+  </div>
+  <form id="use" class="stack">
+    <span class="eyebrow">O que o cliente vai usar agora</span>
+    <div class="choice">
+      <label class="opt ${valeOff?"off":""}"><input type="checkbox" id="c-vale" ${valeOff?"disabled":""}><div><b style="font-weight:500">Crédito do vale</b><div class="muted small">${esc(valeWhy)}</div>
+        <div class="sub" id="valeSub" hidden><div class="field"><label for="c-valor">Valor a descontar (máx. ${fmt(v.saldo)})</label><input id="c-valor" inputmode="decimal" placeholder="0,00"></div></div></div></label>
+      <label class="opt ${cortOff?"off":""}"><input type="checkbox" id="c-cort" ${cortOff?"disabled":""}><div><b style="font-weight:500">Cortesia</b><div class="muted small">${v.cortesia_usada ? "Já usada: " + esc(v.cortesia_item) : "Só junto com o crédito do vale"}</div>
+        <div class="sub" id="cortSub" hidden>
+          <div class="seg"><label><input type="radio" name="ctipo" value="Drink" checked>Drink</label><label><input type="radio" name="ctipo" value="Sobremesa">Sobremesa</label></div>
+          <div class="field"><label for="c-item">Item</label><select id="c-item">${DRINKS.map(d=>`<option>${d}</option>`).join("")}</select></div></div></div></label>
+      <label class="opt ${bonusOff?"off":""}"><input type="checkbox" id="c-bonus" ${bonusOff?"disabled":""}><div><b style="font-weight:500">Bônus R$ 50</b><div class="muted small">${esc(v.bonus_bloqueio || "Uso único, em comanda separada do vale. Um bônus por rodízio.")}</div></div></label>
+    </div>
+    <div class="field"><label for="c-com">Número da comanda</label><input id="c-com" inputmode="numeric" autocomplete="off"></div>
+    <button class="btn" type="submit">Revisar e confirmar</button>
+  </form>
+  <div id="confirm"></div>
+  ${v.historico.length ? `<div class="stack"><span class="eyebrow">Histórico deste vale</span><div class="hist">${v.historico.map(h=>`<div><span class="num muted">${esc(h.quando)}</span><span>${[h.valor>0?"Vale "+fmt(h.valor):"", h.cortesia?"cortesia "+esc(h.cortesia):"", h.bonus?"Bônus R$ 50,00":""].filter(Boolean).join(" + ")}</span><span class="muted">${esc(h.unidade)}</span></div>`).join("")}</div></div>` : ""}`;
+
+  const cv=$("#c-vale"), cc=$("#c-cort"), cb=$("#c-bonus");
+  const sync = () => { $("#valeSub").hidden = !cv.checked; $("#cortSub").hidden = !cc.checked; };
+  cv.addEventListener("change", () => { if (cv.checked) cb.checked = false; else cc.checked = false; sync(); });
+  cc.addEventListener("change", () => { if (cc.checked) { cv.checked = true; cb.checked = false; } sync(); });
+  cb.addEventListener("change", () => { if (cb.checked && (cv.checked || cc.checked)) { toast("O bônus não entra na mesma comanda do vale."); cb.checked = false; } });
+  document.querySelectorAll('input[name="ctipo"]').forEach(r => r.addEventListener("change", () => {
+    $("#c-item").innerHTML = (r.value === "Drink" ? DRINKS : DESSERTS).map(d=>`<option>${d}</option>`).join(""); }));
+  $("#use").addEventListener("submit", e => { e.preventDefault(); review(v); });
+}
+
+function review(v){
+  const cv=$("#c-vale").checked, cc=$("#c-cort").checked, cb=$("#c-bonus").checked;
+  const com=$("#c-com").value.trim(), att=$("#att").value.trim();
+  const val = parseFloat(($("#c-valor").value||"0").replace(/\./g,"").replace(",", ".")) || 0;
+  if (att.length < 2) return toast("Escreva o seu nome no topo antes de confirmar.");
+  if (!cv && !cb) return toast("Marque o que o cliente vai usar.");
+  if (cv && val <= 0) return toast("Digite o valor a descontar do vale.");
+  if (cv && val > v.saldo) return toast("O valor passa do saldo. Máximo " + fmt(v.saldo) + ".");
+  if (!com) return toast("Digite o número da comanda.");
+  store.set("atendente", att);
+  const tipo = cc ? document.querySelector('input[name="ctipo"]:checked').value : null, item = cc ? $("#c-item").value : null;
+  const parts = []; if (cv) parts.push("Vale " + fmt(val)); if (cc) parts.push("cortesia " + item); if (cb) parts.push("Bônus R$ 50,00");
+  $("#confirm").innerHTML = `<div class="card confirm stack"><b style="font-weight:500">Confirmar no vale ${esc(v.code)}?</b>
+    <p>${esc(parts.join(" + "))}</p><p class="muted small">Comanda ${esc(com)} · ${esc(att)}</p>
+    <div class="row" style="justify-content:flex-start"><button class="btn ok" type="button" id="yes">Confirmar</button><button class="btn ghost" type="button" id="no">Corrigir</button></div></div>`;
+  $("#confirm").scrollIntoView({ behavior:"smooth", block:"center" });
+  $("#no").onclick = () => $("#confirm").innerHTML = "";
+  $("#yes").onclick = async () => {
+    $("#yes").disabled = true;
+    try {
+      const nv = await rpc("redeem", { p_code:v.code, p_valor: cv ? val : 0, p_cort_tipo: tipo, p_cort_item: item, p_bonus: cb, p_comanda: com, p_atendente: att });
+      toast("Registrado. Saldo do vale: " + fmt(nv.saldo)); render(nv); window.scrollTo(0,0);
+    } catch(e) { toast(errMsg(e)); $("#yes").disabled = false; }
+  };
+}
+boot();
+</script>
+</body>
+</html>

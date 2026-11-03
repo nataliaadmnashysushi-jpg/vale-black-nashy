@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Meu Vale Black Nashy</title>
+<link rel="icon" href="assets/img/logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main class="view">
+  <div class="voucher" id="card">
+    <img class="brand" src="assets/img/logo.jpg" alt="Nashy Sushi">
+    <p class="muted" id="loading">Carregando o seu vale…</p>
+  </div>
+  <button class="btn ghost" type="button" id="save" hidden>Salvar imagem do vale</button>
+  <section class="stack" id="how" hidden>
+    <span class="eyebrow">Como usar</span>
+    <ul class="list">
+      <li><span>Mostre este vale no caixa. A equipe lê o QR code ou digita o código.</span></li>
+      <li><span>Na visita em que usar o vale, escolha a sua cortesia: um drink ou uma sobremesa.</span></li>
+      <li><span>O bônus de R$ 50 é para outra visita, de segunda a quinta, exceto feriados.</span></li>
+      <li><span>Guarde este link: o saldo atualiza sozinho a cada uso.</span></li>
+    </ul>
+  </section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/common.js"></script>
+<script>
+(async () => {
+  const token = new URLSearchParams(location.search).get("t") || "";
+  const card = $("#card");
+  try {
+    const v = token ? await rpc("voucher_public", { p_token: token }) : null;
+    if (!v) { $("#loading").textContent = "Vale não encontrado. Confira o link que você recebeu no WhatsApp."; return; }
+    const cancelled = v.status !== "ativo";
+    card.innerHTML = `
+      <img class="brand" src="assets/img/logo.jpg" alt="Nashy Sushi">
+      <div><span class="eyebrow">Vale Black November</span>
+        <div class="code num" style="margin-top:6px">${esc(v.code)}</div>
+        <div class="muted small">${esc(v.nome)}</div></div>
+      ${cancelled ? '<span class="pill red" style="margin:0 auto">Vale cancelado</span>' : '<div class="qrbox" id="qr"></div>'}
+      <div class="vstat">
+        <div><b class="num">${fmt(v.saldo)}</b><span>saldo do vale</span></div>
+        <div><b>${v.cortesia_usada ? "Usada" : "Disponível"}</b><span>cortesia</span></div>
+        <div><b class="${v.bonus_usado ? "" : "red"}">${v.bonus_usado ? "Usado" : "R$ 50"}</b><span>bônus</span></div>
+      </div>
+      <p class="muted tiny">Válido até ${brDate(v.expires_on)}. Todas as unidades Nashy.</p>`;
+    if (!cancelled) new QRCode($("#qr"), { text: v.code, width: 150, height: 150, colorDark: "#120b0c" });
+    $("#save").hidden = cancelled; $("#how").hidden = cancelled;
+    $("#save").onclick = async () => {
+      try {
+        const canvas = await html2canvas(card, { backgroundColor: "#120b0c", scale: 2 });
+        const a = document.createElement("a"); a.href = canvas.toDataURL("image/png"); a.download = `vale-nashy-${v.code}.png`; a.click();
+      } catch { toast("Não deu para salvar. Tire um print da tela."); }
+    };
+  } catch(e) { $("#loading").textContent = errMsg(e); }
+})();
+</script>
+</body>
+</html>
