@@ -165,7 +165,7 @@ function render(){
 function voucherMessage(nome, vales){
   const first = nome.split(" ")[0];
   const links = vales.map(v=>`${v.code}: ${siteUrl()}vale.html?t=${v.token}`).join("\n");
-  return `Oi, ${first}! Seu Vale Black Nashy está aprovado.\n\n${vales.length>1?"Seus vales":"Seu vale"}:\n${links}\n\nAbra o link e mostre no caixa. Na visita em que usar o vale, escolha a sua cortesia: um drink ou uma sobremesa. O bônus de R$ 50 fica para outra visita, de segunda a quinta. Validade de 3 meses.\n\nTe esperamos!`;
+  return `Oi, ${first}! Seu vale exclusivo Black November do Nashy está aprovado.\n\nToque no link para abrir o seu cartão virtual:\n${links}\n\nMostre o cartão no caixa. Na visita em que usar o vale, escolha a sua cortesia: um drink ou uma sobremesa. O bônus de R$ 50 fica para outra visita, de segunda a quinta. Validade de 3 meses.\n\nTe esperamos!`;
 }
 function sendModal(o, vales){
   const msg = voucherMessage(o.nome, vales);

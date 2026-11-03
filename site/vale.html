@@ -7,16 +7,44 @@
 <title>Meu Vale Black Nashy</title>
 <link rel="icon" href="assets/img/logo.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Poppins:wght@300;400;500;600&display=swap">
 <link rel="stylesheet" href="assets/style.css">
+<style>
+  .gift{text-align:left;position:relative;border-radius:20px;overflow:hidden;background:#0d0809;border:1px solid #3a2a2b}
+  .gift .ghero{position:relative;height:300px}
+  .gift .ghero img.bgimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 55%}
+  .gift .ghero .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(13,8,9,.55) 0%,rgba(13,8,9,.25) 35%,rgba(13,8,9,.85) 78%,#0d0809 100%)}
+  .gift .top{position:absolute;left:22px;right:22px;top:20px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+  .gift .top img{width:112px;height:auto}
+  .gift .tag{font-size:10px;letter-spacing:.32em;text-transform:uppercase;color:#f6f1ef;text-align:right;line-height:1.7}
+  .gift .tag i{display:block;width:44px;height:1px;background:var(--red);margin:6px 0 0 auto}
+  .gift .who{position:absolute;left:22px;right:22px;bottom:18px}
+  .lbl{font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:#d9cfcc}
+  .gift .name{font-family:"Cormorant Garamond",Georgia,serif;font-weight:600;font-size:54px;line-height:1;color:#f6efe6;margin-top:6px;overflow-wrap:anywhere}
+  .gift .name + i{display:block;width:56px;height:2px;background:var(--red);margin-top:10px}
+  .gift .body{padding:6px 22px 24px;display:flex;flex-direction:column;gap:20px}
+  .gift .msg{font-size:15px;line-height:1.6;color:#e9e1df}
+  .gift .msg b{font-weight:500;color:#fff}
+  .gift .value{font-size:52px;font-weight:300;color:var(--red);line-height:1.05;letter-spacing:-.01em;margin-top:4px}
+  .gift .sub{font-size:12px;color:var(--muted);margin-top:4px}
+  .perks{display:flex;flex-direction:column;border-top:1px solid #3a2a2b}
+  .perk{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:12px 0;border-bottom:1px solid #3a2a2b;align-items:center}
+  .perk b{font-weight:500;font-size:14px}
+  .perk span{font-size:12px;color:var(--muted);grid-column:1}
+  .perk em{font-style:normal;font-size:11px;letter-spacing:.08em;text-transform:uppercase;grid-row:1/3;grid-column:2;color:var(--ok)}
+  .perk em.used{color:var(--muted)}
+  .use{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center}
+  .use .qrbox{padding:8px;border-radius:10px}
+  .use .code{font-size:20px;letter-spacing:.12em;font-weight:500}
+  .foot{display:flex;flex-direction:column;gap:2px;font-size:12px;color:#d9cfcc;border-left:2px solid var(--red);padding-left:10px}
+  .foot b{font-weight:600;color:#fff}
+  @media (max-width:380px){ .gift .name{font-size:44px} .gift .value{font-size:44px} .use{grid-template-columns:1fr;justify-items:center;text-align:center} }
+</style>
 </head>
 <body>
 <main class="view">
-  <div class="voucher" id="card">
-    <img class="brand" src="assets/img/logo.jpg" alt="Nashy Sushi">
-    <p class="muted" id="loading">Carregando o seu vale…</p>
-  </div>
-  <button class="btn ghost" type="button" id="save" hidden>Salvar imagem do vale</button>
+  <div id="card"><p class="muted" id="loading" style="text-align:center">Carregando o seu vale…</p></div>
+  <button class="btn" type="button" id="save" hidden>Salvar imagem do vale</button>
   <section class="stack" id="how" hidden>
     <span class="eyebrow">Como usar</span>
     <ul class="list">
@@ -33,6 +61,7 @@
 <script src="assets/config.js"></script>
 <script src="assets/common.js"></script>
 <script>
+const titleCase = s => String(s||"").toLowerCase().replace(/(^|\s)(\S)/g,(m,a,b)=>a+b.toUpperCase());
 (async () => {
   const token = new URLSearchParams(location.search).get("t") || "";
   const card = $("#card");
@@ -40,27 +69,54 @@
     const v = token ? await rpc("voucher_public", { p_token: token }) : null;
     if (!v) { $("#loading").textContent = "Vale não encontrado. Confira o link que você recebeu no WhatsApp."; return; }
     const cancelled = v.status !== "ativo";
+    const full = Number(v.saldo) >= 200;
     card.innerHTML = `
-      <img class="brand" src="assets/img/logo.jpg" alt="Nashy Sushi">
-      <div><span class="eyebrow">Vale Black November</span>
-        <div class="code num" style="margin-top:6px">${esc(v.code)}</div>
-        <div class="muted small">${esc(v.nome)}</div></div>
-      ${cancelled ? '<span class="pill red" style="margin:0 auto">Vale cancelado</span>' : '<div class="qrbox" id="qr"></div>'}
-      <div class="vstat">
-        <div><b class="num">${fmt(v.saldo)}</b><span>saldo do vale</span></div>
-        <div><b>${v.cortesia_usada ? "Usada" : "Disponível"}</b><span>cortesia</span></div>
-        <div><b class="${v.bonus_usado ? "" : "red"}">${v.bonus_usado ? "Usado" : "R$ 50"}</b><span>bônus</span></div>
+    <div class="gift" id="gift">
+      <div class="ghero">
+        <img class="bgimg" src="assets/img/salao.jpg" alt="">
+        <div class="shade"></div>
+        <div class="top">
+          <img src="assets/img/logo-branco.png" alt="Nashy Sushi">
+          <div class="tag">Vale exclusivo<br>Black November<i></i></div>
+        </div>
+        <div class="who">
+          <div class="lbl">Titular do vale</div>
+          <div class="name">${esc(titleCase(v.nome))}</div><i></i>
+        </div>
       </div>
-      <p class="muted tiny">Válido até ${brDate(v.expires_on)}. Todas as unidades Nashy.</p>`;
-    if (!cancelled) new QRCode($("#qr"), { text: v.code, width: 150, height: 150, colorDark: "#120b0c" });
+      <div class="body">
+        ${cancelled ? '<span class="pill red" style="align-self:flex-start">Vale cancelado</span>' : `
+        <p class="msg">Parabéns! Você garantiu o <b>vale exclusivo Black November do Nashy</b>. Agora é só escolher o dia e vir aproveitar.</p>`}
+        <div>
+          <div class="lbl">${full ? "Valor do vale" : "Saldo do vale"}</div>
+          <div class="value num">${fmt(v.saldo)}</div>
+          ${full ? "" : '<div class="sub">de R$ 200,00</div>'}
+        </div>
+        <div class="perks">
+          <div class="perk"><b>Vale de R$ 200</b><span>Em qualquer unidade e qualquer item da comanda</span><em class="${Number(v.saldo) > 0 ? "" : "used"}">${Number(v.saldo) > 0 ? "Disponível" : "Usado"}</em></div>
+          <div class="perk"><b>Cortesia</b><span>Um drink ou uma sobremesa, na visita em que usar o vale</span><em class="${v.cortesia_usada ? "used" : ""}">${v.cortesia_usada ? "Usada" : "Disponível"}</em></div>
+          <div class="perk"><b>Bônus de R$ 50</b><span>Para outra visita, de segunda a quinta, exceto feriados</span><em class="${v.bonus_usado ? "used" : ""}">${v.bonus_usado ? "Usado" : "Disponível"}</em></div>
+        </div>
+        ${cancelled ? "" : `
+        <div class="use">
+          <div class="qrbox" id="qr"></div>
+          <div><div class="lbl">Código</div><div class="code num">${esc(v.code)}</div><div class="sub">Mostre no caixa ao fechar a conta.</div></div>
+        </div>`}
+        <div class="foot">
+          <span><b>Válido até:</b> ${brDate(v.expires_on)}</span>
+          <span><b>Unidades:</b> Savassi, Lourdes, São Pedro e Contagem</span>
+        </div>
+      </div>
+    </div>`;
+    if (!cancelled) new QRCode($("#qr"), { text: v.code, width: 96, height: 96, colorDark: "#120b0c" });
     $("#save").hidden = cancelled; $("#how").hidden = cancelled;
     $("#save").onclick = async () => {
       try {
-        const canvas = await html2canvas(card, { backgroundColor: "#120b0c", scale: 2 });
+        const canvas = await html2canvas($("#gift"), { backgroundColor: "#0d0809", scale: 2, useCORS: true });
         const a = document.createElement("a"); a.href = canvas.toDataURL("image/png"); a.download = `vale-nashy-${v.code}.png`; a.click();
       } catch { toast("Não deu para salvar. Tire um print da tela."); }
     };
-  } catch(e) { $("#loading").textContent = errMsg(e); }
+  } catch(e) { console.error(e); card.innerHTML = `<p class="muted" style="text-align:center">${esc(errMsg(e))}</p>`; }
 })();
 </script>
 </body>
