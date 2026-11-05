@@ -23,20 +23,20 @@
     <span class="eyebrow">Black November · até <span id="endDate">27/11</span></span>
     <h1>Pague R$ 200,<br><span>leve R$ 250</span></h1>
     <p style="font-size:18px;font-weight:400">+ um drink ou uma sobremesa <span class="gold">por nossa conta</span></p>
-    <p class="muted">Use o vale de R$ 200 com a sua cortesia já na primeira visita. Os R$ 50 de bônus ficam para você voltar.</p>
+    <p class="muted">São R$ 200 de vale para usar com a sua cortesia e mais R$ 50 de bônus para usar em outra visita.</p>
   </section>
   <img class="photo" src="assets/img/mesa.jpg" alt="Mesa do Nashy com sushis, pratos quentes e drinks" width="1200" height="800">
 
   <div class="offer">
     <div class="card"><div class="v">R$ 200</div><div class="muted tiny">vale + cortesia</div></div>
     <div class="plus">+</div>
-    <div class="card"><div class="v red">R$ 50</div><div class="muted tiny">bônus próxima visita</div></div>
+    <div class="card"><div class="v red">R$ 50</div><div class="muted tiny">bônus em outra visita</div></div>
   </div>
 
   <div class="card stack" id="lotCard" style="gap:8px">
     <div class="row"><b style="font-weight:500">Lote de hoje</b><span class="num" id="lotLeft">carregando…</span></div>
     <div class="bar"><i id="lotBar" style="width:0%"></i></div>
-    <span class="muted tiny" id="lotNote">Quando os vales do dia acabam, o próximo lote abre amanhã.</span>
+    <span class="muted tiny" id="lotNote">Os vales são vendidos em lotes limitados.</span>
   </div>
 
   <button class="btn" type="button" data-go="cadastro">Garantir meu vale</button>
@@ -45,8 +45,8 @@
     <span class="eyebrow">Como funciona</span>
     <ul class="list">
       <li><span>Use o vale no que quiser: rodízio, drinks, sobremesas, qualquer item da sua comanda.</span></li>
-      <li><span>O vale vem com uma cortesia: um drink ou uma sobremesa da lista, na visita em que você usar o vale.</span></li>
-      <li><span>Os R$ 50 de bônus ficam para outra visita, de segunda a quinta.</span></li>
+      <li><span>O vale vem com uma cortesia: um drink ou uma sobremesa da lista abaixo. Peça a cortesia na mesma conta em que usar o vale.</span></li>
+      <li><span>Os R$ 50 de bônus ficam para outra visita, de segunda a quinta, exceto feriados.</span></li>
       <li><span>Vale em todas as unidades: Savassi, Lourdes, São Pedro e Contagem.</span></li>
     </ul>
   </section>
@@ -62,12 +62,12 @@
 
   <section>
     <span class="eyebrow">Regras</span>
-    <details open><summary>Validade</summary><p>O vale, a cortesia e o bônus valem por 3 meses a partir da aprovação da compra.</p></details>
-    <details><summary>Bônus em outra visita</summary><p>O bônus de R$ 50 vale de segunda a quinta, exceto feriados. Ele não pode ser usado no mesmo dia nem na mesma comanda do vale, e é usado de uma vez só.</p></details>
+    <details open><summary>Validade</summary><p>O vale, a cortesia e o bônus valem por 3 meses a partir da confirmação do seu Pix. A data final aparece no seu vale.</p></details>
+    <details><summary>Bônus em outra visita</summary><p>O bônus de R$ 50 vale de segunda a quinta, exceto feriados. Ele não pode ser usado no mesmo dia nem na mesma comanda do vale. O bônus é usado de uma vez só: se a conta der menos de R$ 50, a diferença não fica guardada.</p></details>
     <details><summary>Mais de um bônus na mesma mesa</summary><p>Cada bônus precisa de um rodízio na comanda. Dois bônus na mesma mesa só com dois ou mais rodízios.</p></details>
-    <details><summary>Saldo</summary><p>Se a conta der menos que o vale, o saldo fica guardado no mesmo vale para a próxima visita, dentro da validade. O vale não é trocado por dinheiro.</p></details>
-    <details><summary>Quantos vales posso comprar</summary><p>Até 4 vales por compra. Cada vale tem o seu código e a sua cortesia.</p></details>
-    <details><summary>Quando recebo o vale</summary><p>Depois que confirmamos o seu Pix, você recebe o vale no WhatsApp em até 1 dia útil.</p></details>
+    <details><summary>Saldo</summary><p>Se a conta der menos que o vale, o saldo fica guardado no mesmo vale para a próxima visita, dentro da validade. O vale não dá troco e não é trocado por dinheiro.</p></details>
+    <details><summary>Quantos vales posso comprar</summary><p>Até 4 vales por compra. Cada vale tem o seu código, a sua cortesia e o seu bônus.</p></details>
+    <details><summary>Quando recebo o vale</summary><p>Depois que confirmamos o seu Pix, você recebe o vale no WhatsApp em até 1 dia útil. Pedidos feitos na sexta, no sábado ou no domingo são confirmados até segunda.</p></details>
     <details><summary>Não é reserva</summary><p>O vale não garante mesa. Reservas só na Savassi, para grupos de 6 ou mais.</p></details>
   </section>
 
@@ -82,8 +82,8 @@
     <form id="signup" class="stack" novalidate>
       <div class="field"><label for="f-nome">Nome completo</label><input id="f-nome" required autocomplete="name"></div>
       <div class="field"><label for="f-tel">WhatsApp com DDD</label><input id="f-tel" required inputmode="tel" autocomplete="tel" placeholder="(31) 98765-4321"></div>
-      <div class="field"><label for="f-nasc">Data de aniversário</label><input id="f-nasc" required inputmode="numeric" placeholder="dd/mm" maxlength="5"></div>
-      <div class="field"><label for="f-unid">Unidade preferida</label>
+      <div class="field"><label for="f-nasc">Aniversário (dia e mês)</label><input id="f-nasc" required inputmode="numeric" placeholder="dd/mm" maxlength="5"></div>
+      <div class="field"><label for="f-unid">Unidade preferida <span class="muted tiny">(o vale vale em todas)</span></label>
         <select id="f-unid"><option>Savassi</option><option>Lourdes</option><option>São Pedro</option><option>Contagem</option></select></div>
       <div class="card qty">
         <span>Quantidade de vales<br><span class="muted tiny">até 4 por compra</span></span>
@@ -115,7 +115,7 @@
       <li><span>Em até 1 dia útil você recebe o seu vale no WhatsApp.</span></li>
     </ol>
     <a class="btn" id="waBtn" target="_blank" rel="noopener">Enviar comprovante no WhatsApp</a>
-    <p class="muted tiny" style="text-align:center">Se o Pix não for encontrado em 24 horas, o pedido é cancelado e o vale volta para o lote.</p>
+    <p class="muted tiny" style="text-align:center">Se não recebermos o comprovante em até 24 horas, o pedido pode ser cancelado.</p>
   </div>
 </main>
 
@@ -133,16 +133,16 @@ document.addEventListener("click", e => { const b = e.target.closest("[data-go]"
 function closedMsg(){
   if (status.before) return `As vendas abrem em ${brDate(status.start)}.`;
   if (status.after) return "As vendas do Vale Black terminaram.";
-  return "Os vales de hoje acabaram. Um novo lote abre amanhã.";
+  return "Este lote esgotou. Acompanhe o Instagram do Nashy para o próximo.";
 }
 async function loadStatus(){
   try {
     status = await rpc("sales_status");
     $("#endDate").textContent = brDate(status.end).slice(0,5);
     const left = status.remaining, lim = status.limit;
-    $("#lotLeft").textContent = status.open ? `restam ${left} de ${lim}` : (status.before ? `abre em ${brDate(status.start).slice(0,5)}` : status.after ? "encerrado" : "esgotado hoje");
+    $("#lotLeft").textContent = status.open ? `restam ${left} de ${lim}` : (status.before ? `abre em ${brDate(status.start).slice(0,5)}` : status.after ? "encerrado" : "esgotado");
     $("#lotBar").style.width = (status.open ? Math.round((lim-left)/lim*100) : 100) + "%";
-    if (!status.open) { $("#lotNote").textContent = closedMsg(); document.querySelectorAll('[data-go="cadastro"]').forEach(b => b.textContent = status.after ? "Vendas encerradas" : (status.before ? "Vendas abrem em breve" : "Esgotado hoje · volte amanhã")); }
+    if (!status.open) { $("#lotNote").textContent = closedMsg(); document.querySelectorAll('[data-go="cadastro"]').forEach(b => b.textContent = status.after ? "Vendas encerradas" : (status.before ? "Vendas abrem em breve" : "Lote esgotado")); }
   } catch(e) { $("#lotLeft").textContent = ""; }
 }
 

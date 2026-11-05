@@ -18,7 +18,7 @@ const ERRORS = {
   UNIDADE_INVALIDA: "Escolha uma unidade.",
   FORA_DO_PERIODO: "As vendas do vale não estão abertas hoje.",
   PEDIDO_PENDENTE: "Já existe um pedido seu aguardando confirmação do Pix. Fale com a gente no WhatsApp.",
-  ESGOTADO_HOJE: "Os vales de hoje acabaram. Um novo lote abre amanhã.",
+  ESGOTADO_HOJE: "Este lote esgotou. Acompanhe o Instagram do Nashy para o próximo.",
   SEM_PERMISSAO: "Você não tem permissão para isso. Entre de novo.",
   ATENDENTE_OBRIGATORIO: "Escreva o seu nome antes de confirmar.",
   COMANDA_OBRIGATORIA: "Digite o número da comanda.",
@@ -43,7 +43,7 @@ function errMsg(e){
   const m = (e && (e.message || e.msg)) || String(e);
   const [key, extra] = m.split(":");
   if (key === "BONUS_BLOQUEADO") return m.slice(16);
-  if (key === "ESGOTADO_HOJE" && Number(extra) > 0) return `Hoje restam só ${extra} vale(s). Diminua a quantidade.`;
+  if (key === "ESGOTADO_HOJE" && Number(extra) > 0) return `Restam só ${extra} vale(s) neste lote. Diminua a quantidade.`;
   if (ERRORS[key]) return ERRORS[key];
   if (/Failed to fetch|NetworkError/i.test(m)) return "Sem conexão. Confira a internet e tente de novo.";
   if (/Invalid login/i.test(m)) return "Senha incorreta.";
