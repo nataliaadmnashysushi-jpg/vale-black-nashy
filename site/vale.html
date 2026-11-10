@@ -49,7 +49,8 @@
     <span class="eyebrow">Como usar</span>
     <ul class="list">
       <li><span>Mostre este vale no caixa. A equipe lê o QR code ou digita o código.</span></li>
-      <li><span>Peça a sua cortesia, um drink ou uma sobremesa, na mesma conta em que usar o vale.</span></li>
+      <li><span>Peça a sua cortesia, qualquer drink ou sobremesa do cardápio, na mesma conta em que usar o vale.</span></li>
+      <li><span>O vale pode ser dado de presente. Não vale junto com o desconto de aniversário nem com outras promoções.</span></li>
       <li><span>O bônus de R$ 50 é para outra visita, de segunda a quinta, exceto feriados. Ele é usado de uma vez só: se a conta der menos, a diferença não fica guardada.</span></li>
       <li><span>Se a conta der menos que o vale, o saldo fica guardado para a próxima visita. O vale não dá troco.</span></li>
       <li><span>Guarde este link: o saldo atualiza sozinho a cada uso.</span></li>
@@ -95,7 +96,7 @@ const titleCase = s => String(s||"").toLowerCase().replace(/(^|\s)(\S)/g,(m,a,b)
         </div>
         <div class="perks">
           <div class="perk"><b>Vale de R$ 200</b><span>Em qualquer unidade e qualquer item da comanda</span><em class="${Number(v.saldo) > 0 ? "" : "used"}">${Number(v.saldo) > 0 ? "Disponível" : "Usado"}</em></div>
-          <div class="perk"><b>Cortesia</b><span>Um drink ou uma sobremesa, na visita em que usar o vale</span><em class="${v.cortesia_usada ? "used" : ""}">${v.cortesia_usada ? "Usada" : "Disponível"}</em></div>
+          <div class="perk"><b>Cortesia</b><span>Qualquer drink ou sobremesa do cardápio, na visita em que usar o vale</span><em class="${v.cortesia_usada ? "used" : ""}">${v.cortesia_usada ? "Usada" : "Disponível"}</em></div>
           <div class="perk"><b>Bônus de R$ 50</b><span>Para outra visita, de segunda a quinta, exceto feriados</span><em class="${v.bonus_usado ? "used" : ""}">${v.bonus_usado ? "Usado" : "Disponível"}</em></div>
         </div>
         ${cancelled ? "" : `

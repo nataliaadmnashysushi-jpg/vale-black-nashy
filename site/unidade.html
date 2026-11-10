@@ -111,10 +111,10 @@ function render(v){
     <div class="choice">
       <label class="opt ${valeOff?"off":""}"><input type="checkbox" id="c-vale" ${valeOff?"disabled":""}><div><b style="font-weight:500">Crédito do vale</b><div class="muted small">${esc(valeWhy)}</div>
         <div class="sub" id="valeSub" hidden><div class="seg"><label><input type="radio" name="vmode" value="all" checked>Saldo todo<br><span class="tiny">${fmt(v.saldo)}</span></label><label><input type="radio" name="vmode" value="part">Outro valor<br><span class="tiny">menos que o saldo</span></label></div><div class="field" id="valorBox" hidden><label for="c-valor">Valor a descontar (máx. ${fmt(v.saldo)})</label><input id="c-valor" inputmode="decimal" placeholder="0,00"></div></div></div></label>
-      <label class="opt ${cortOff?"off":""}"><input type="checkbox" id="c-cort" ${cortOff?"disabled":""}><div><b style="font-weight:500">Cortesia</b><div class="muted small">${v.cortesia_usada ? "Já usada: " + esc(v.cortesia_item) : "Só junto com o crédito do vale"}</div>
+      <label class="opt ${cortOff?"off":""}"><input type="checkbox" id="c-cort" ${cortOff?"disabled":""}><div><b style="font-weight:500">Cortesia</b><div class="muted small">${v.cortesia_usada ? "Já usada: " + esc(v.cortesia_item) : "Qualquer drink ou sobremesa do cardápio, só junto com o crédito do vale. Não vale com desconto de aniversário."}</div>
         <div class="sub" id="cortSub" hidden>
           <div class="seg"><label><input type="radio" name="ctipo" value="Drink" checked>Drink</label><label><input type="radio" name="ctipo" value="Sobremesa">Sobremesa</label></div>
-          <div class="field"><label for="c-item">Item</label><select id="c-item">${DRINKS.map(d=>`<option>${d}</option>`).join("")}</select></div></div></div></label>
+          <div class="field"><label for="c-item">Qual item do cardápio</label><input id="c-item" autocomplete="off" placeholder="Ex.: nome do drink ou da sobremesa"></div></div></div></label>
       <label class="opt ${bonusOff?"off":""}"><input type="checkbox" id="c-bonus" ${bonusOff?"disabled":""}><div><b style="font-weight:500">Bônus R$ 50</b><div class="muted small">${esc(v.bonus_bloqueio || "Uso único, em comanda separada do vale. Um bônus por rodízio.")}</div></div></label>
     </div>
     <div class="field"><label for="c-com">Número da comanda</label><input id="c-com" inputmode="numeric" autocomplete="off"></div>
@@ -128,8 +128,6 @@ function render(v){
   cv.addEventListener("change", () => { if (cv.checked) cb.checked = false; else cc.checked = false; sync(); });
   cc.addEventListener("change", () => { if (cc.checked) { cv.checked = true; cb.checked = false; } sync(); });
   cb.addEventListener("change", () => { if (cb.checked && (cv.checked || cc.checked)) { toast("O bônus não entra na mesma comanda do vale."); cb.checked = false; } });
-  document.querySelectorAll('input[name="ctipo"]').forEach(r => r.addEventListener("change", () => {
-    $("#c-item").innerHTML = (r.value === "Drink" ? DRINKS : DESSERTS).map(d=>`<option>${d}</option>`).join(""); }));
   document.querySelectorAll('input[name="vmode"]').forEach(r => r.addEventListener("change", () => {
     $("#valorBox").hidden = r.value !== "part" || !r.checked; if (!$("#valorBox").hidden) $("#c-valor").focus(); }));
   $("#use").addEventListener("submit", e => { e.preventDefault(); review(v); });
@@ -146,7 +144,8 @@ function review(v){
   if (cv && val > v.saldo) return toast("O valor passa do saldo. Máximo " + fmt(v.saldo) + ".");
   if (!com) return toast("Digite o número da comanda.");
   store.set("atendente", att);
-  const tipo = cc ? document.querySelector('input[name="ctipo"]:checked').value : null, item = cc ? $("#c-item").value : null;
+  const tipo = cc ? document.querySelector('input[name="ctipo"]:checked').value : null, item = cc ? $("#c-item").value.trim() : null;
+  if (cc && item.length < 2) return toast("Escreva qual drink ou sobremesa o cliente escolheu.");
   const parts = []; if (cv) parts.push("Vale " + fmt(val)); if (cc) parts.push("cortesia " + item); if (cb) parts.push("Bônus R$ 50,00");
   $("#confirm").innerHTML = `<div class="card confirm stack"><b style="font-weight:500">Confirmar no vale ${esc(v.code)}?</b>
     <p>${esc(parts.join(" + "))}</p><p class="muted small">Comanda ${esc(com)} · ${esc(att)}</p>
