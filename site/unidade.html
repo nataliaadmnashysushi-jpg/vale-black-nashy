@@ -33,6 +33,7 @@
     <button class="btn ghost" type="button" id="scan">Ler QR code</button>
     <div id="reader" hidden></div>
     <div id="result" class="stack"></div>
+    <details id="dayBox" style="margin-top:12px"><summary>Fechamento: vales usados hoje nesta unidade</summary><div id="dayList" class="stack" style="margin-top:8px"></div></details>
   </div>
 </main>
 <script src="assets/vendor/supabase-2.117.3.js"></script>
@@ -42,6 +43,17 @@
 <script>
 let me = null, scanner = null;
 const store = { get:k=>{try{return localStorage.getItem(k)}catch{return null}}, set:(k,v)=>{try{localStorage.setItem(k,v)}catch{}} };
+
+async function loadDay(){
+  const box = $("#dayList"); if (!box) return;
+  try {
+    const list = await rpc("unit_today");
+    if (!list.length) { box.innerHTML = '<p class="muted small">Nenhum vale usado hoje.</p>'; return; }
+    const tot = list.reduce((a,u)=>a+Number(u.valor)+(u.bonus?50:0),0);
+    box.innerHTML = `<p class="small">${list.length} uso(s) · total ${fmt(tot)} (vales + bônus)</p><div class="hist">${list.map(u=>`<div><span class="num muted">${esc(u.hora)}</span><span>${esc(u.code)} · comanda ${esc(u.comanda)} · ${[Number(u.valor)>0?"Vale "+fmt(u.valor):"", u.cortesia?"cortesia "+esc(u.cortesia):"", u.bonus?"Bônus R$ 50,00":""].filter(Boolean).join(" + ")}</span><span class="muted">${esc(u.atendente)}</span></div>`).join("")}</div><p class="muted tiny">Confira no fechamento: cada comanda desta lista precisa ter o desconto do vale lançado no caixa.</p>`;
+  } catch(e) { box.innerHTML = `<p class="muted small">${esc(errMsg(e))}</p>`; }
+}
+$("#dayBox").addEventListener("toggle", e => { if (e.target.open) loadDay(); });
 
 async function boot(){
   const { data:{ session } } = await sb.auth.getSession();

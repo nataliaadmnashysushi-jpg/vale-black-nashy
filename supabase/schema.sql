@@ -245,6 +245,19 @@ begin
       from redemptions r where r.voucher_id = v.id and r.undone_at is null));
 end $$;
 
+-- Usos de hoje da unidade logada (para o fechamento do caixa)
+create or replace function unit_today() returns json
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if my_role() not in ('unit','admin') then raise exception 'SEM_PERMISSAO'; end if;
+  return (select coalesce(json_agg(json_build_object(
+      'hora', to_char(r.created_at at time zone 'America/Sao_Paulo','HH24:MI'),
+      'code', v.code, 'comanda', r.comanda, 'atendente', r.atendente, 'valor', r.valor,
+      'cortesia', r.cortesia_item, 'bonus', r.bonus) order by r.created_at), '[]')
+    from redemptions r join vouchers v on v.id = r.voucher_id
+    where r.unit = unit_name_now() and r.day = today_br() and r.undone_at is null);
+end $$;
+
 create or replace function redeem(p_code text, p_valor numeric, p_cort_tipo text, p_cort_item text,
                                   p_bonus boolean, p_comanda text, p_atendente text)
 returns json language plpgsql security definer set search_path = public as $$
@@ -397,7 +410,7 @@ revoke all on function create_order, sales_status, voucher_public, find_voucher,
   approve_order, reject_order, cancel_order, undo_redemption, set_receipt from public;
 grant execute on function sales_status, create_order, voucher_public to anon, authenticated;
 grant execute on function find_voucher, redeem, approve_order, reject_order, cancel_order,
-  undo_redemption, set_receipt to authenticated;
+  undo_redemption, set_receipt, unit_today to authenticated;
 grant select on settings, orders, vouchers, redemptions, holidays, profiles to authenticated;
 grant update on settings to authenticated;
 grant insert, delete on holidays to authenticated;
