@@ -225,7 +225,7 @@ create or replace function find_voucher(p_code text) returns json
 language plpgsql stable security definer set search_path = public as $$
 declare v vouchers; d date := today_br();
 begin
-  if my_role() not in ('unit','admin') then raise exception 'SEM_PERMISSAO'; end if;
+  if coalesce(my_role(),'') not in ('unit','admin') then raise exception 'SEM_PERMISSAO'; end if;
   select * into v from vouchers where code = upper(trim(p_code));
   if not found then return null; end if;
   return json_build_object(
@@ -249,7 +249,7 @@ end $$;
 create or replace function unit_today() returns json
 language plpgsql stable security definer set search_path = public as $$
 begin
-  if my_role() not in ('unit','admin') then raise exception 'SEM_PERMISSAO'; end if;
+  if coalesce(my_role(),'') not in ('unit','admin') then raise exception 'SEM_PERMISSAO'; end if;
   return (select coalesce(json_agg(json_build_object(
       'hora', to_char(r.created_at at time zone 'America/Sao_Paulo','HH24:MI'),
       'code', v.code, 'comanda', r.comanda, 'atendente', r.atendente, 'valor', r.valor,
@@ -263,7 +263,7 @@ create or replace function redeem(p_code text, p_valor numeric, p_cort_tipo text
 returns json language plpgsql security definer set search_path = public as $$
 declare v vouchers; d date := today_br(); unit text; why text; valor numeric := coalesce(p_valor,0);
 begin
-  if my_role() not in ('unit','admin') then raise exception 'SEM_PERMISSAO'; end if;
+  if coalesce(my_role(),'') not in ('unit','admin') then raise exception 'SEM_PERMISSAO'; end if;
   unit := coalesce(my_unit(), 'Admin');
   if length(trim(coalesce(p_atendente,''))) < 2 then raise exception 'ATENDENTE_OBRIGATORIO'; end if;
   if length(trim(coalesce(p_comanda,''))) < 1 then raise exception 'COMANDA_OBRIGATORIA'; end if;
@@ -271,6 +271,11 @@ begin
   select * into v from vouchers where code = upper(trim(p_code)) for update;  -- trava contra uso duplo
   if not found then raise exception 'VALE_NAO_ENCONTRADO'; end if;
   if v.status <> 'ativo' then raise exception 'VALE_CANCELADO'; end if;
+  if exists (select 1 from redemptions x where x.voucher_id = v.id and x.comanda = trim(p_comanda)
+             and x.valor = coalesce(p_valor,0) and x.bonus = coalesce(p_bonus,false) and x.undone_at is null
+             and x.created_at > now() - interval '3 minutes') then
+    raise exception 'USO_DUPLICADO';                -- toque duplo ou internet lenta
+  end if;
 
   if coalesce(p_bonus,false) then
     if valor > 0 or p_cort_item is not null then raise exception 'BONUS_JUNTO_COM_VALE'; end if;
@@ -368,7 +373,7 @@ create or replace function undo_redemption(p_id bigint) returns void
 language plpgsql security definer set search_path = public as $$
 declare r redemptions;
 begin
-  if my_role() not in ('unit','admin') then raise exception 'SEM_PERMISSAO'; end if;
+  if coalesce(my_role(),'') not in ('unit','admin') then raise exception 'SEM_PERMISSAO'; end if;
   select * into r from redemptions where id = p_id and undone_at is null for update;
   if not found then raise exception 'USO_NAO_ENCONTRADO'; end if;
   if not is_admin() and (r.unit <> my_unit() or r.created_at < now() - interval '30 minutes') then
@@ -407,7 +412,7 @@ create policy comprovantes_admin on storage.objects for all to authenticated
 
 -- ---------- Permissões das funções ----------
 revoke all on function create_order, sales_status, voucher_public, find_voucher, redeem,
-  approve_order, reject_order, cancel_order, undo_redemption, set_receipt from public;
+  approve_order, reject_order, cancel_order, undo_redemption, set_receipt, unit_today from public;
 grant execute on function sales_status, create_order, voucher_public to anon, authenticated;
 grant execute on function find_voucher, redeem, approve_order, reject_order, cancel_order,
   undo_redemption, set_receipt, unit_today to authenticated;

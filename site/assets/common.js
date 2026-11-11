@@ -38,6 +38,7 @@ const ERRORS = {
   COMANDA_COM_BONUS: "Esta comanda já tem um bônus hoje. O vale não pode entrar na mesma comanda do bônus.",
   COMPROVANTE_OBRIGATORIO: "Anexe o comprovante do Pix para aprovar.",
   DESFAZER_SO_ADMIN: "Já passou de 30 minutos. Para desfazer, fale com a Natália.",
+  USO_DUPLICADO: "Este uso já foi registrado agora há pouco. Confira o histórico do vale abaixo antes de tentar de novo.",
   VALE_JA_USADO: "Um dos vales deste pedido já foi usado. Desfaça os usos na aba Usos antes de cancelar, se for o caso.",
 };
 function errMsg(e){

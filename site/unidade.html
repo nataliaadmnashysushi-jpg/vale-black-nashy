@@ -129,13 +129,14 @@ function render(v){
     <span class="eyebrow">O que o cliente vai usar agora</span>
     <div class="choice">
       <label class="opt ${valeOff?"off":""}"><input type="checkbox" id="c-vale" ${valeOff?"disabled":""}><div><b style="font-weight:500">Crédito do vale</b><div class="muted small">${esc(valeWhy)}</div>
-        <div class="sub" id="valeSub" hidden><div class="seg"><label><input type="radio" name="vmode" value="all" checked>Saldo todo<br><span class="tiny">${fmt(v.saldo)}</span></label><label><input type="radio" name="vmode" value="part">Outro valor<br><span class="tiny">menos que o saldo</span></label></div><div class="field" id="valorBox" hidden><label for="c-valor">Valor a descontar (máx. ${fmt(v.saldo)})</label><input id="c-valor" inputmode="decimal" placeholder="0,00"></div></div></div></label>
+        <div class="sub" id="valeSub" hidden><p class="small" id="calc">O sistema desconta do vale o valor da conta, até o saldo.</p></div></div></div></div></label>
       <label class="opt ${cortOff?"off":""}"><input type="checkbox" id="c-cort" ${cortOff?"disabled":""}><div><b style="font-weight:500">Cortesia</b><div class="muted small">${v.cortesia_usada ? "Já usada: " + esc(v.cortesia_item) : "Qualquer drink ou sobremesa do cardápio, só junto com o crédito do vale. Não vale com desconto de aniversário."}</div>
         <div class="sub" id="cortSub" hidden>
           <div class="seg"><label><input type="radio" name="ctipo" value="Drink" checked>Drink</label><label><input type="radio" name="ctipo" value="Sobremesa">Sobremesa</label></div>
           <div class="field"><label for="c-item">Qual item do cardápio</label><input id="c-item" autocomplete="off" placeholder="Ex.: nome do drink ou da sobremesa"></div></div></div></label>
       <label class="opt ${bonusOff?"off":""}"><input type="checkbox" id="c-bonus" ${bonusOff?"disabled":""}><div><b style="font-weight:500">Bônus R$ 50</b><div class="muted small">${esc(v.bonus_bloqueio || "Só em mesa de rodízio, um bônus por rodízio. Uso único: a diferença não fica guardada.")}</div></div></label>
     </div>
+    <div class="field"><label for="c-conta">Valor total da comanda (com serviço)</label><input id="c-conta" inputmode="decimal" autocomplete="off" placeholder="0,00"><span class="muted tiny">Mais de um vale na mesma comanda? No segundo vale, digite só o que ainda falta pagar.</span></div>
     <div class="field"><label for="c-com">Número da comanda</label><input id="c-com" inputmode="numeric" autocomplete="off"></div>
     <button class="btn" type="submit">Revisar e confirmar</button>
   </form>
@@ -147,8 +148,8 @@ function render(v){
   cv.addEventListener("change", () => { if (cv.checked) cb.checked = false; else cc.checked = false; sync(); });
   cc.addEventListener("change", () => { if (cc.checked) { cv.checked = true; cb.checked = false; } sync(); });
   cb.addEventListener("change", () => { if (cb.checked && (cv.checked || cc.checked)) { toast("O bônus não entra na mesma comanda do vale."); cb.checked = false; } });
-  document.querySelectorAll('input[name="vmode"]').forEach(r => r.addEventListener("change", () => {
-    $("#valorBox").hidden = r.value !== "part" || !r.checked; if (!$("#valorBox").hidden) $("#c-valor").focus(); }));
+  $("#c-conta").addEventListener("input", () => { const t = parseMoney($("#c-conta").value);
+    $("#calc").textContent = t > 0 ? `Vale paga ${fmt(Math.min(t, v.saldo))} · cliente paga ${fmt(Math.max(t - v.saldo, 0))} · saldo fica ${fmt(Math.max(v.saldo - t, 0))}` : "O sistema desconta do vale o valor da conta, até o saldo."; });
   $("#use").addEventListener("submit", e => { e.preventDefault(); review(v); });
 }
 
@@ -163,19 +164,22 @@ document.addEventListener("click", async e => {
 function review(v){
   const cv=$("#c-vale").checked, cc=$("#c-cort").checked, cb=$("#c-bonus").checked;
   const com=$("#c-com").value.trim(), att=$("#att").value.trim();
-  const partial = document.querySelector('input[name="vmode"]:checked')?.value === "part";
-  const val = partial ? parseMoney($("#c-valor").value) : Number(v.saldo);
+  const conta = parseMoney($("#c-conta").value);
+  const val = Math.min(conta, Number(v.saldo));
   if (att.length < 2) return toast("Escreva o seu nome no topo antes de confirmar.");
   if (!cv && !cb) return toast("Marque o que o cliente vai usar.");
-  if (cv && val <= 0) return toast("Digite o valor a descontar do vale.");
-  if (cv && val > v.saldo) return toast("O valor passa do saldo. Máximo " + fmt(v.saldo) + ".");
+  if (conta <= 0) return toast("Digite o valor total da comanda.");
+  if (conta > 5000) return toast("Confira o valor da comanda: " + fmt(conta) + ".");
   if (!com) return toast("Digite o número da comanda.");
   store.set("atendente", att);
   const tipo = cc ? document.querySelector('input[name="ctipo"]:checked').value : null, item = cc ? $("#c-item").value.trim() : null;
   if (cc && item.length < 2) return toast("Escreva qual drink ou sobremesa o cliente escolheu.");
   const parts = []; if (cv) parts.push("Vale " + fmt(val)); if (cc) parts.push("cortesia " + item); if (cb) parts.push("Bônus R$ 50,00");
   $("#confirm").innerHTML = `<div class="card confirm stack"><b style="font-weight:500">Confirmar no vale ${esc(v.code)}?</b>
-    <p>${esc(parts.join(" + "))}</p><p class="muted small">Comanda ${esc(com)} · ${esc(att)}</p>
+    <p>${esc(parts.join(" + "))}</p>
+    <p class="small">Conta ${fmt(conta)}${cv ? ` · cliente paga ${fmt(Math.max(conta - val, 0))} · saldo do vale fica ${fmt(Number(v.saldo) - val)}` : ""}${cb ? ` · cliente paga ${fmt(Math.max(conta - 50, 0))}` : ""}</p>
+    ${cb && conta < 50 ? `<p class="err">A conta é menor que R$ 50. A diferença do bônus não fica guardada. Avise o cliente antes de confirmar.</p>` : ""}
+    <p class="muted small">Comanda ${esc(com)} · ${esc(att)} · cliente ${esc(v.nome)}</p>
     <div class="row" style="justify-content:flex-start"><button class="btn ok" type="button" id="yes">Confirmar</button><button class="btn ghost" type="button" id="no">Corrigir</button></div></div>`;
   $("#confirm").scrollIntoView({ behavior:"smooth", block:"center" });
   $("#no").onclick = () => $("#confirm").innerHTML = "";
