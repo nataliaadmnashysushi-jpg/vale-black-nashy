@@ -74,8 +74,8 @@ async function rpc(name, args){ const { data, error } = await sb.rpc(name, args)
 function toast(msg){ let t=$("#toast"); if(!t){ t=document.createElement("div"); t.id="toast"; t.className="toast"; t.setAttribute("role","status"); document.body.appendChild(t); }
   t.textContent=msg; t.hidden=false; clearTimeout(toast.h); toast.h=setTimeout(()=>t.hidden=true,3500); }
 
-async function copyText(text){ try { await navigator.clipboard.writeText(text); toast("Copiado."); }
-  catch { const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast("Copiado."); } }
+async function copyText(text, msg){ msg = msg || "Copiado."; try { await navigator.clipboard.writeText(text); toast(msg); }
+  catch { const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast(msg); } }
 
 // ---------- Pix copia e cola (BR Code estático com o número do pedido) ----------
 function pixPayload({ key, name, city, amount, txid }){

@@ -108,10 +108,16 @@
     <p class="gold small" id="pixNote"></p>
     <div class="card stack">
       <div class="row"><span class="muted">Valor do Pix</span><b class="num" id="pixTotal" style="font-size:20px;font-weight:600"></b></div>
-      <button class="btn" type="button" id="copyPix">Copiar Pix copia e cola</button>
+      <button class="btn pixmain" type="button" id="copyPix">Copiar código Pix</button>
+      <p class="small" style="margin:0;text-align:center">No app do seu banco, escolha <b>Pix copia e cola</b> e cole o código. O valor já vem preenchido.</p>
+      <span class="muted tiny" style="text-align:center">Pagando pelo computador? Leia o QR code com o celular:</span>
       <div class="qrbox" id="pixQr" aria-label="QR code do Pix"></div>
-      <span class="muted tiny" style="text-align:center">Ou pague pela chave:</span>
-      <div class="pixkey"><code id="pixKey"></code><button class="btn sm ghost" type="button" id="copyKey">Copiar</button></div>
+      <details class="pixalt"><summary class="muted tiny">Prefere pagar pela chave Pix?</summary>
+        <div class="stack" style="margin-top:8px">
+          <div class="pixkey"><code id="pixKey"></code><button class="btn sm ghost" type="button" id="copyKey">Copiar</button></div>
+          <span class="muted tiny">Pela chave, digite o valor exato: <b id="pixTotal2"></b>.</span>
+        </div>
+      </details>
       <span class="muted tiny" id="pixName"></span>
     </div>
     <ol class="steps">
@@ -177,7 +183,8 @@ $("#signup").addEventListener("submit", async e => {
     $("#pixTotal").textContent = fmt(r.total);
     $("#pixKey").textContent = s.pix_key;
     $("#pixName").textContent = "No seu banco aparece: " + s.pix_name + ". É a razão social do Nashy, pode pagar tranquilo.";
-    $("#copyPix").onclick = () => copyText(payload);
+    $("#copyPix").onclick = () => copyText(payload, "Código copiado! Agora cole no app do banco, em Pix copia e cola.");
+    $("#pixTotal2").textContent = $("#pixTotal").textContent;
     $("#copyKey").onclick = () => copyText(s.pix_key);
     $("#pixQr").innerHTML = ""; new QRCode($("#pixQr"), { text: payload, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
     const q = r.qty || qty;
