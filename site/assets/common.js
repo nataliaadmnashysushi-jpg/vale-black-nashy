@@ -90,7 +90,9 @@ function pixPayload({ key, name, city, amount, txid }){
   return p + c.toString(16).toUpperCase().padStart(4,"0");
 }
 
+// Célula de planilha segura: nome que começa com = + - @ não vira fórmula no Excel
+function csvCell(v){ let t = String(v ?? ""); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return `"${t.replace(/"/g,'""')}"`; }
 function downloadCSV(name, rows){
-  const csv = "﻿" + rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g,'""')}"`).join(";")).join("\n");
+  const csv = "﻿" + rows.map(r => r.map(csvCell).join(";")).join("\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download = name; a.click();
 }

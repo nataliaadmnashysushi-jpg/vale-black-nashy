@@ -49,6 +49,7 @@
 <script>
 const S = { tab:"pend", orders:[], vouchers:[], uses:[], settings:null };
 const dt = iso => new Date(iso).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+const dtY = iso => new Date(iso).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
 const statusPill = s => ({pendente:'<span class="pill warn">Aguardando Pix</span>',aprovado:'<span class="pill ok">Aprovado</span>',recusado:'<span class="pill red">Pix não encontrado</span>',cancelado:'<span class="pill mute">Cancelado</span>'}[s]);
 const siteUrl = () => (S.settings?.site_url || location.origin + location.pathname.replace(/painel\.html$/,"")).replace(/\/?$/,"/");
 
@@ -287,8 +288,8 @@ $("#zip").onclick = async () => {
     const nome = o.nome.normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"-").slice(0,40);
     zip.file(`pedido-${String(o.id).padStart(4,"0")}-${nome}.${o.receipt_path.split(".").pop()}`, data);
   }
-  const rows = [["Pedido","Identificador Pix","Data","Cliente","Telefone","Vales","Valor","Status","Arquivo"], ...list.map(o=>[o.id,"NSHPED"+o.id,dt(o.created_at),o.nome,o.telefone,o.qty,String(o.qty*Number(S.settings.vale_value)).replace(".",","),o.status,o.receipt_path])];
-  zip.file("lista-de-pedidos.csv", "﻿" + rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g,'""')}"`).join(";")).join("\n"));
+  const rows = [["Pedido","Identificador Pix","Data","Cliente","Telefone","Vales","Valor","Status","Arquivo"], ...list.map(o=>[o.id,"NSHPED"+o.id,dtY(o.created_at),o.nome,o.telefone,o.qty,String(o.qty*Number(S.settings.vale_value)).replace(".",","),o.status,o.receipt_path])];
+  zip.file("lista-de-pedidos.csv", "﻿" + rows.map(r => r.map(csvCell).join(";")).join("\n"));
   const blob = await zip.generateAsync({ type:"blob" });
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `comprovantes-vale-black-${new Date().toISOString().slice(0,10)}.zip`; a.click();
   btn.disabled = false; btn.textContent = "Baixar comprovantes (.zip)";
@@ -298,12 +299,12 @@ $("#zip").onclick = async () => {
 $("#export").onclick = () => {
   const d = new Date().toISOString().slice(0,10);
   if (S.tab === "uses") return downloadCSV(`usos-${d}.csv`, [["Quando","Unidade","Atendente","Código","Cliente","Valor","Cortesia","Bônus","Comanda","Desfeito"],
-    ...S.uses.map(u=>[dt(u.created_at),u.unit,u.atendente,u.vouchers?.code,u.vouchers?.nome,String(u.valor).replace(".",","),u.cortesia_item,u.bonus?"sim":"",u.comanda,u.undone_at?"sim":""])]);
+    ...S.uses.map(u=>[dtY(u.created_at),u.unit,u.atendente,u.vouchers?.code,u.vouchers?.nome,String(u.valor).replace(".",","),u.cortesia_item,u.bonus?"sim":"",u.comanda,u.undone_at?"sim":""])]);
   if (S.tab === "vouchers" || S.tab === "remind") return downloadCSV(`vales-${d}.csv`, [["Código","Cliente","Telefone","Saldo","Cortesia","Bônus usado","Validade","Status","Pedido"],
     ...S.vouchers.map(v=>[v.code,v.nome,v.telefone,String(v.saldo).replace(".",","),v.cortesia_item,v.bonus_day||"",v.expires_on,v.status,v.order_id])]);
   const list = S.tab === "pend" ? S.orders.filter(o=>o.status==="pendente") : S.orders;
   downloadCSV(`pedidos-${d}.csv`, [["Pedido","Identificador Pix","Data","Cliente","Telefone","Aniversário","Unidade","Vales","Valor","Status","Novidades","Comprovante"],
-    ...list.map(o=>[o.id,"NSHPED"+o.id,dt(o.created_at),o.nome,o.telefone,o.aniversario,o.unidade_pref,o.qty,String(o.qty*200).replace(".",","),o.status,o.optin?"sim":"não",o.receipt_path?"sim":"não"])]);
+    ...list.map(o=>[o.id,"NSHPED"+o.id,dtY(o.created_at),o.nome,o.telefone,o.aniversario,o.unidade_pref,o.qty,String(o.qty*200).replace(".",","),o.status,o.optin?"sim":"não",o.receipt_path?"sim":"não"])]);
 };
 boot();
 </script>
