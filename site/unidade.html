@@ -188,10 +188,33 @@ function review(v){
     $("#yes").disabled = true;
     try {
       const nv = await rpc("redeem", { p_code:v.code, p_valor: cv ? val : 0, p_cort_tipo: tipo, p_cort_item: item, p_bonus: cb, p_comanda: com, p_atendente: att });
-      toast("Registrado. Saldo do vale: " + fmt(nv.saldo)); render(nv); window.scrollTo(0,0);
+      done(Object.assign({}, v, nv || {}), parts.join(" + "), com);
     } catch(e) { toast(errMsg(e)); $("#yes").disabled = false; }
   };
 }
+// Depois de registrar: mostra o resumo e deixa a tela pronta para o próximo vale.
+function done(nv, what, com){
+  $("#code").value = ""; $("#confirm").innerHTML = "";
+  $("#result").innerHTML = `<div class="card stack done-card">
+    <span class="pill ok">Registrado</span>
+    <b style="font-weight:500">${esc(nv.code)} · ${esc(nv.nome)}</b>
+    <p class="small" style="margin:0">${esc(what)} · comanda ${esc(com)}</p>
+    <p class="small" style="margin:0">Saldo que ficou no vale: <b>${fmt(nv.saldo)}</b></p>
+    <button class="btn" type="button" id="next">Validar outro vale</button>
+    <button class="btn ghost sm" type="button" id="again" style="align-self:center">Abrir este vale de novo (corrigir ou desfazer)</button>
+  </div>`;
+  $("#next").onclick = clearScreen;
+  $("#again").onclick = () => findVoucher(nv.code);
+  window.scrollTo(0,0); lastUse = Date.now();
+}
+function clearScreen(){ $("#result").innerHTML = ""; $("#code").value = ""; currentCode = ""; window.scrollTo(0,0); $("#code").focus(); }
+// Se o celular ficou parado mais de 5 minutos, a tela volta limpa para o próximo cliente.
+let lastUse = Date.now();
+document.addEventListener("click", () => { lastUse = Date.now(); }, true);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && Date.now() - lastUse > 5*60*1000 && !$("#main").hidden) clearScreen();
+  if (document.visibilityState === "hidden") lastUse = Math.min(lastUse, Date.now());
+});
 boot();
 </script>
 </body>
