@@ -72,7 +72,10 @@ const titleCase = s => String(s||"").toLowerCase().replace(/(^|\s)(\S)/g,(m,a,b)
   try {
     const v = token ? await rpc("voucher_public", { p_token: token }) : null;
     if (!v) { $("#loading").textContent = "Vale não encontrado. Confira o link que você recebeu no WhatsApp."; return; }
-    const cancelled = v.status !== "ativo";
+    const hoje = new Date().toLocaleDateString("en-CA",{timeZone:"America/Sao_Paulo"});
+    const vencido = v.expires_on < hoje;
+    const cancelled = v.status !== "ativo" || vencido;
+    const semSaldo = Number(v.saldo) <= 0;
     const full = Number(v.saldo) >= 200;
     card.innerHTML = `
     <div class="gift" id="gift">
@@ -89,17 +92,17 @@ const titleCase = s => String(s||"").toLowerCase().replace(/(^|\s)(\S)/g,(m,a,b)
         </div>
       </div>
       <div class="body">
-        ${cancelled ? '<span class="pill red" style="align-self:flex-start">Vale cancelado</span>' : `
-        <p class="msg">Parabéns! Você garantiu o <b>vale exclusivo Black November do Nashy</b>. Agora é só escolher o dia e vir aproveitar.</p>`}
+        ${cancelled ? `<span class="pill red" style="align-self:flex-start">${vencido ? "Vale vencido em " + brDate(v.expires_on) : "Vale cancelado"}</span>` : `
+        ${semSaldo && v.bonus_usado ? '<p class="msg">Este vale já foi todo usado. Obrigado por aproveitar o Black November do Nashy!</p>' : '<p class="msg">Parabéns! Você garantiu o <b>vale exclusivo Black November do Nashy</b>. Agora é só escolher o dia e vir aproveitar.</p>'}`}
         <div>
           <div class="lbl">${full ? "Valor do vale" : "Saldo do vale"}</div>
           <div class="value num">${fmt(v.saldo)}</div>
           ${full ? "" : '<div class="sub">de R$ 200,00</div>'}
         </div>
         <div class="perks">
-          <div class="perk"><b>Vale de R$ 200</b><span>Vale como dinheiro em qualquer item da comanda</span><em class="${Number(v.saldo) > 0 ? "" : "used"}">${Number(v.saldo) > 0 ? "Disponível" : "Usado"}</em></div>
-          <div class="perk"><b>Cortesia</b><span>Qualquer drink ou sobremesa do cardápio, na visita em que usar o vale</span><em class="${v.cortesia_usada ? "used" : ""}">${v.cortesia_usada ? "Usada" : "Disponível"}</em></div>
-          <div class="perk"><b>Bônus de R$ 50</b><span>Em outra visita, numa mesa de rodízio, de segunda a quinta, exceto feriados</span><em class="${v.bonus_usado ? "used" : ""}">${v.bonus_usado ? "Usado" : "Disponível"}</em></div>
+          <div class="perk"><b>Vale de R$ 200</b><span>Vale como dinheiro em qualquer item da comanda</span><em class="${!semSaldo && !cancelled ? "" : "used"}">${semSaldo ? "Usado" : cancelled ? "Indisponível" : "Disponível"}</em></div>
+          <div class="perk"><b>Cortesia</b><span>Qualquer drink ou sobremesa do cardápio, na visita em que usar o vale</span><em class="${v.cortesia_usada || semSaldo || cancelled ? "used" : ""}">${v.cortesia_usada ? "Usada" : semSaldo || cancelled ? "Indisponível" : "Disponível"}</em></div>
+          <div class="perk"><b>Bônus de R$ 50</b><span>Em outra visita, numa mesa de rodízio, de segunda a quinta, exceto feriados</span><em class="${v.bonus_usado || cancelled ? "used" : ""}">${v.bonus_usado ? "Usado" : cancelled ? "Indisponível" : "Disponível"}</em></div>
         </div>
         ${cancelled ? "" : `
         <div class="use">

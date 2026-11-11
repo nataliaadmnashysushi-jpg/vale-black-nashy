@@ -167,8 +167,10 @@ begin
   perform pg_advisory_xact_lock(4242);          -- uma venda por vez, para não passar do limite
   select * into s from settings where id = 1;
   if d < s.sales_start or d > s.sales_end then raise exception 'FORA_DO_PERIODO'; end if;
-  if exists (select 1 from orders where telefone = tel and status = 'pendente' and sale_day = d) then
-    raise exception 'PEDIDO_PENDENTE';           -- evita alguém segurar vários lotes
+  -- já tem pedido aguardando Pix hoje: devolve o mesmo pedido (o cliente recupera o Pix)
+  select id, qty into new_id, used from orders where telefone = tel and status = 'pendente' and sale_day = d order by id limit 1;
+  if found then
+    return json_build_object('id', new_id, 'total', s.vale_value * used, 'qty', used, 'existente', true);
   end if;
   select coalesce(sum(qty),0) into used from orders
    where sale_day = d and (status = 'aprovado' or (status = 'pendente' and created_at > now() - interval '3 hours'));
@@ -179,7 +181,7 @@ begin
   insert into orders (sale_day, nome, telefone, aniversario, unidade_pref, qty, optin)
   values (d, trim(p_nome), tel, trim(coalesce(p_aniv,'')), p_unid, p_qty, coalesce(p_optin,false))
   returning id into new_id;
-  return json_build_object('id', new_id, 'total', s.vale_value * p_qty);
+  return json_build_object('id', new_id, 'total', s.vale_value * p_qty, 'qty', p_qty, 'existente', false);
 end $$;
 
 -- Link do vale do cliente (pelo token secreto, não pelo código)

@@ -105,6 +105,7 @@
   <div class="stack" id="pixStep" hidden>
     <span class="eyebrow">Pedido <span id="orderNo"></span> reservado</span>
     <h2>Agora é só pagar o Pix</h2>
+    <p class="gold small" id="pixNote"></p>
     <div class="card stack">
       <div class="row"><span class="muted">Valor do Pix</span><b class="num" id="pixTotal" style="font-size:20px;font-weight:600"></b></div>
       <button class="btn" type="button" id="copyPix">Copiar Pix copia e cola</button>
@@ -161,7 +162,8 @@ $("#signup").addEventListener("submit", async e => {
   const fail = m => { err.textContent = m; err.hidden = false; };
   if (nome.split(/\s+/).length < 2) return fail("Escreva o seu nome completo.");
   if (tel.replace(/\D/g,"").length < 10) return fail("Confira o WhatsApp com DDD.");
-  if (!/^\d{2}\/\d{2}$/.test(nasc)) return fail("Escreva o aniversário no formato dd/mm.");
+  const [dd, mm] = nasc.split("/").map(Number);
+  if (!/^\d{2}\/\d{2}$/.test(nasc) || dd < 1 || dd > 31 || mm < 1 || mm > 12) return fail("Escreva o aniversário no formato dd/mm, por exemplo 25/03.");
   if (!$("#f-lgpd").checked) return fail("Para continuar, aceite as regras e o uso dos dados.");
   const pre = status || await rpc("sales_status").catch(() => null);
   if (pre && !pre.pix_key) return fail("O pagamento por Pix está sendo configurado. Tente de novo em alguns minutos ou fale com a gente no WhatsApp.");
@@ -178,7 +180,9 @@ $("#signup").addEventListener("submit", async e => {
     $("#copyPix").onclick = () => copyText(payload);
     $("#copyKey").onclick = () => copyText(s.pix_key);
     $("#pixQr").innerHTML = ""; new QRCode($("#pixQr"), { text: payload, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
-    const msg = `Olá! Segue o comprovante do Pix do Vale Black Nashy.\nPedido #${r.id} · ${nome} · ${qty} vale(s) · ${fmt(r.total)}`;
+    const q = r.qty || qty;
+    if (r.existente) $("#pixNote").textContent = `Você já tinha o pedido #${r.id}, de ${q} vale(s), aguardando o Pix. É só pagar este Pix.`;
+    const msg = `Olá! Segue o comprovante do Pix do Vale Black Nashy.\nPedido #${r.id} · ${nome} · ${q} vale(s) · ${fmt(r.total)}`;
     $("#waBtn").href = `https://wa.me/${s.whatsapp}?text=${encodeURIComponent(msg)}`;
     $("#formStep").hidden = true; $("#pixStep").hidden = false; window.scrollTo(0,0);
   } catch(ex) { fail(errMsg(ex)); loadStatus(); }
