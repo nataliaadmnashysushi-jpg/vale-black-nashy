@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap">
 <link rel="stylesheet" href="assets/style.css">
+<style>.balance .card b{white-space:normal;font-size:clamp(12px,3.8vw,16px)}.balance .card{min-width:0;padding:10px}</style>
 </head>
 <body>
 <main class="view">
@@ -118,7 +119,7 @@ function render(v){
   const pill = cancelled ? '<span class="pill red">Cancelado</span>' : v.vencido ? '<span class="pill red">Vencido</span>' : `<span class="pill ok">Válido até ${brDate(v.expires_on)}</span>`;
   out.innerHTML = `
   <div class="card stack">
-    <div class="row"><div><b class="num" style="font-weight:500">${esc(v.code)}</b><div class="muted small">${esc(v.nome)}</div></div>${pill}</div>
+    <div class="row"><div><b class="num" style="font-weight:500;white-space:nowrap">${esc(v.code)}</b><div class="muted small">${esc(v.nome)}</div></div>${pill}</div>
     <div class="balance">
       <div class="card"><span>Saldo do vale</span><b class="num">${fmt(v.saldo)}</b></div>
       <div class="card"><span>Cortesia</span><b>${v.cortesia_usada ? "Usada" : "Livre"}</b></div>
