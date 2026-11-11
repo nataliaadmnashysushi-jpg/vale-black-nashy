@@ -1,0 +1,28 @@
+# Vigia do banco do Vale Black.
+# A cada 30 minutos consulta o Supabase. Se o banco estiver pausado ou fora do ar,
+# esta verificação falha e o GitHub manda um e-mail de alerta para a conta do Nashy.
+# A consulta também conta como uso, ajudando a evitar a pausa do plano grátis.
+name: Vigia do banco
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+jobs:
+  vigia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Consultar o Supabase
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -s -o /tmp/r.txt -w "%{http_code}" -m 30 -X POST \
+              "https://vgrlegsabrgibnhbwyyw.supabase.co/rest/v1/rpc/sales_status" \
+              -H "apikey: sb_publishable_tLRb5jLD8B9CAf5h47SvBQ_54FIBGoo" \
+              -H "Content-Type: application/json" -d "{}")
+            echo "Tentativa $i: HTTP $code"
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 60
+          done
+          echo "::error::Banco do Vale Black sem resposta (HTTP $code). Abra o Supabase e veja se o projeto vale-black está pausado."
+          head -c 500 /tmp/r.txt
+          exit 1
