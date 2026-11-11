@@ -156,7 +156,11 @@ function render(){
       <div class="field"><label for="s-city">Cidade do titular</label><input id="s-city" value="${esc(s.pix_city)}"></div>
       <div class="field"><label for="s-wa">WhatsApp que recebe os comprovantes (com 55 e DDD)</label><input id="s-wa" value="${esc(s.whatsapp)}"></div>
       <div class="field"><label for="s-url">Endereço do site (para os links dos vales)</label><input id="s-url" placeholder="${esc(location.origin)}/" value="${esc(s.site_url)}"></div>
-      <button class="btn" type="submit">Salvar configurações</button></form>`;
+      <button class="btn" type="submit">Salvar configurações</button></form>
+      <section class="stack" style="max-width:520px;margin-top:28px"><span class="eyebrow">Cópias automáticas</span>
+        <p class="muted small">Todo dia, às 5h, o sistema guarda sozinho uma cópia de todos os pedidos, vales e usos, fora do banco principal. As cópias ficam guardadas por 6 meses.</p>
+        <div id="copias" class="muted small">Carregando…</div></section>`;
+    loadCopias();
     $("#cfg").addEventListener("submit", async e => { e.preventDefault();
       const { error } = await sb.from("settings").update({ daily_limit:+$("#s-limit").value, sales_start:$("#s-start").value, sales_end:$("#s-end").value,
         pix_key:$("#s-key").value.trim(), pix_name:$("#s-name").value.trim(), pix_city:$("#s-city").value.trim(), whatsapp:$("#s-wa").value.replace(/\D/g,""), site_url:$("#s-url").value.trim() }).eq("id",1);
@@ -164,10 +168,38 @@ function render(){
   }
 }
 
+async function copiasFetch(q){
+  const { data:{ session } } = await sb.auth.getSession();
+  return fetch("/.netlify/functions/copias" + q, { headers: { Authorization: "Bearer " + (session?.access_token || "") } });
+}
+async function loadCopias(){
+  const box = $("#copias"); if (!box) return;
+  try {
+    const r = await copiasFetch("");
+    if (!r.ok) { box.textContent = r.status === 500 ? "As cópias automáticas ainda não foram ativadas no Netlify." : "Não foi possível ver as cópias (" + r.status + ")."; return; }
+    const { dias } = await r.json();
+    if (!dias.length) { box.textContent = "A primeira cópia sai amanhã às 5h."; return; }
+    box.innerHTML = `<p>Última cópia: <b>${brDate(dias[0])}</b> · ${dias.length} cópia(s) guardada(s)</p>
+      <div class="row" style="justify-content:flex-start;flex-wrap:wrap;gap:8px;margin-top:8px">
+        <select id="cp-dia" class="input" style="width:auto">${dias.map(d=>`<option value="${d}">${brDate(d)}</option>`).join("")}</select>
+        <button class="btn sm ghost" type="button" data-cp="vales.csv">Vales</button>
+        <button class="btn sm ghost" type="button" data-cp="usos.csv">Usos</button>
+        <button class="btn sm ghost" type="button" data-cp="pedidos.csv">Pedidos</button>
+        <button class="btn sm ghost" type="button" data-cp="tudo.json">Tudo (técnico)</button></div>`;
+    box.querySelectorAll("[data-cp]").forEach(b => b.onclick = async () => {
+      const f = $("#cp-dia").value + "/" + b.dataset.cp;
+      const r = await copiasFetch("?arquivo=" + encodeURIComponent(f));
+      if (!r.ok) return toast("Não foi possível baixar.");
+      const a = document.createElement("a"); a.href = URL.createObjectURL(await r.blob());
+      a.download = "copia-" + f.replace("/", "-"); a.click();
+    });
+  } catch { box.textContent = "Não foi possível ver as cópias agora."; }
+}
+
 function voucherMessage(nome, vales){
   const first = nome.split(" ")[0];
   const links = vales.map(v=>`${v.code}: ${siteUrl()}vale.html?t=${v.token}`).join("\n");
-  return `Oi, ${first}! Seu vale exclusivo Black November do Nashy está aprovado.\n\nToque no link para abrir o seu cartão virtual:\n${links}\n\nMostre o cartão no caixa. Na visita em que usar o vale, escolha a sua cortesia: um drink ou uma sobremesa. O bônus de R$ 50 fica para outra visita, de segunda a quinta. Validade de 3 meses.\n\nTe esperamos!`;
+  return `Oi, ${first}! Seu vale exclusivo Black November do Nashy está aprovado.\n\nToque no link para abrir o seu cartão virtual:\n${links}\n\nMostre o cartão no caixa. Na mesma conta em que usar o vale, escolha a sua cortesia: qualquer drink ou sobremesa do cardápio. O bônus de R$ 50 fica para outra visita, de segunda a quinta, exceto feriados. Validade de 3 meses.\n\nTe esperamos!`;
 }
 function sendModal(o, vales){
   const msg = voucherMessage(o.nome, vales);
