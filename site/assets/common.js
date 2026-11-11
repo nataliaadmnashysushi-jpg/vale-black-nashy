@@ -26,7 +26,7 @@ const ERRORS = {
   VALE_CANCELADO: "Este vale foi cancelado.",
   VALE_VENCIDO: "Este vale está vencido.",
   BONUS_JUNTO_COM_VALE: "O bônus não pode entrar na mesma comanda do vale.",
-  BONUS_USADO_HOJE: "O bônus foi usado hoje. O vale fica para outra visita.",
+  BONUS_USADO_HOJE: "Um bônus desta compra foi usado hoje. O vale fica para outra visita.",
   NADA_SELECIONADO: "Marque o que o cliente vai usar.",
   VALOR_ACIMA_DO_SALDO: "O valor passa do saldo do vale.",
   CORTESIA_JA_USADA: "A cortesia deste vale já foi usada.",

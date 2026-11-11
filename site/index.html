@@ -173,7 +173,7 @@ $("#signup").addEventListener("submit", async e => {
     $("#orderNo").textContent = "#" + r.id;
     $("#pixTotal").textContent = fmt(r.total);
     $("#pixKey").textContent = s.pix_key;
-    $("#pixName").textContent = "Titular: " + s.pix_name;
+    $("#pixName").textContent = "No seu banco aparece: " + s.pix_name + ". É a razão social do Nashy, pode pagar tranquilo.";
     $("#copyPix").onclick = () => copyText(payload);
     $("#copyKey").onclick = () => copyText(s.pix_key);
     $("#pixQr").innerHTML = ""; new QRCode($("#pixQr"), { text: payload, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });

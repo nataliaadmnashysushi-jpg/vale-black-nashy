@@ -64,6 +64,8 @@ $("#login").addEventListener("submit", async e => { e.preventDefault(); $("#logi
   if (error) { $("#loginErr").textContent = errMsg(error); $("#loginErr").hidden = false; return; } boot(); });
 $("#logout").onclick = async () => { await sb.auth.signOut(); boot(); };
 $("#refresh").onclick = () => load();
+// Atualiza sozinho a cada minuto, se nenhuma janela estiver aberta e a busca estiver vazia
+setInterval(() => { if (!$("#app").hidden && !$("#modal").innerHTML && !$("#search").value && S.tab !== "config" && document.visibilityState === "visible") load(); }, 60000);
 
 async function load(){
   const [o, v, u, s] = await Promise.all([

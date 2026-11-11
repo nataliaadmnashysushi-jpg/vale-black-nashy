@@ -207,6 +207,10 @@ begin
   if v.bonus_day is not null then return 'Bônus já usado.'; end if;
   if d > v.bonus_expires_on then return 'Bônus vencido.'; end if;
   if v.last_vale_day = d or v.cortesia_day = d then return 'O vale foi usado hoje. O bônus fica para outra visita.'; end if;
+  if exists (select 1 from redemptions r join vouchers w on w.id = r.voucher_id
+             where w.order_id = v.order_id and r.day = d and r.valor > 0 and r.undone_at is null) then
+    return 'Um vale desta mesma compra foi usado hoje. O bônus fica para outra visita.';
+  end if;
   if extract(isodow from d) > 4 then return 'Bônus só de segunda a quinta.'; end if;
   if exists (select 1 from holidays where day = d) then return 'Bônus não vale em feriado.'; end if;
   return null;
@@ -226,7 +230,8 @@ begin
     'cortesia_usada', v.cortesia_day is not null, 'cortesia_item', v.cortesia_item,
     'bonus_usado', v.bonus_day is not null,
     'bonus_bloqueio', bonus_block_reason(v, d),
-    'vale_bloqueio', case when v.bonus_day = d then 'O bônus foi usado hoje. O vale fica para outra visita.' end,
+    'vale_bloqueio', case when exists (select 1 from vouchers w where w.order_id = v.order_id and w.bonus_day = d)
+                          then 'Um bônus desta compra foi usado hoje. O vale fica para outra visita.' end,
     'historico', (select coalesce(json_agg(json_build_object(
         'id', r.id, 'pode_desfazer', r.unit = unit_name_now() and r.created_at > now() - interval '30 minutes',
         'quando', to_char(r.created_at at time zone 'America/Sao_Paulo','DD/MM HH24:MI'),
@@ -261,7 +266,7 @@ begin
     if exists (select 1 from redemptions x where x.unit = unit_name_now() and x.day = d and x.comanda = trim(p_comanda)
                and x.undone_at is null and x.bonus) then raise exception 'COMANDA_COM_BONUS'; end if;
     if d > v.expires_on then raise exception 'VALE_VENCIDO'; end if;
-    if v.bonus_day = d then raise exception 'BONUS_USADO_HOJE'; end if;
+    if exists (select 1 from vouchers w where w.order_id = v.order_id and w.bonus_day = d) then raise exception 'BONUS_USADO_HOJE'; end if;
     if valor < 0 or valor > v.saldo then raise exception 'VALOR_ACIMA_DO_SALDO'; end if;
     if p_cort_item is not null then
       if v.cortesia_day is not null then raise exception 'CORTESIA_JA_USADA'; end if;
