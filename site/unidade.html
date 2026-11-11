@@ -78,10 +78,15 @@ $("#scan").onclick = async () => {
   } catch { toast("Não foi possível abrir a câmera. Libere a câmera para este site ou digite o código."); box.hidden = true; scanner = null; $("#scan").textContent = "Ler QR code"; }
 };
 
+// Aceita "NSH-AB3CD", "nsh ab3cd", "NSHAB3CD", "AB3CD" e espaços ou traços no meio
+function normCode(t){
+  let x = String(t||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+  if (x.startsWith("NSH") && x.length === 8) x = x.slice(3);
+  return x.length === 5 ? "NSH-" + x : String(t||"").trim().toUpperCase();
+}
 async function findVoucher(code){
-  const out = $("#result"); code = String(code||"").trim().toUpperCase();
+  const out = $("#result"); code = normCode(code);
   if (!code) return toast("Digite o código do vale.");
-  if (!code.startsWith("NSH-") && code.length === 5) code = "NSH-" + code;
   out.innerHTML = '<p class="muted">Buscando…</p>';
   let v;
   try { v = await rpc("find_voucher", { p_code: code }); } catch(e) { out.innerHTML = `<p class="err">${esc(errMsg(e))}</p>`; return; }
@@ -96,7 +101,7 @@ function render(v){
   const valeWhy = cancelled ? "Vale cancelado" : v.vencido ? "Vale vencido" : v.saldo <= 0 ? "Sem saldo" : v.vale_bloqueio || ("Saldo " + fmt(v.saldo));
   const cortOff = valeOff || v.cortesia_usada;
   const bonusOff = !!v.bonus_bloqueio;
-  const pill = cancelled ? '<span class="pill red">Cancelado</span>' : v.vencido ? '<span class="pill red">Vencido</span>' : `<span class="pill ok">Válido até ${brDate(v.expires_on).slice(0,5)}</span>`;
+  const pill = cancelled ? '<span class="pill red">Cancelado</span>' : v.vencido ? '<span class="pill red">Vencido</span>' : `<span class="pill ok">Válido até ${brDate(v.expires_on)}</span>`;
   out.innerHTML = `
   <div class="card stack">
     <div class="row"><div><b class="num" style="font-weight:500">${esc(v.code)}</b><div class="muted small">${esc(v.nome)}</div></div>${pill}</div>
