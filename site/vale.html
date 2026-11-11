@@ -51,7 +51,8 @@
       <li><span>Mostre este vale no caixa. A equipe lê o QR code ou digita o código.</span></li>
       <li><span>Peça a sua cortesia, qualquer drink ou sobremesa do cardápio, na mesma conta em que usar o vale.</span></li>
       <li><span>O vale pode ser dado de presente. Não vale junto com o desconto de aniversário nem com outras promoções.</span></li>
-      <li><span>O bônus de R$ 50 é para outra visita, de segunda a quinta, exceto feriados. Ele é usado de uma vez só: se a conta der menos, a diferença não fica guardada.</span></li>
+      <li><span>O bônus de R$ 50 vale numa mesa de rodízio, de segunda a quinta, exceto feriados. O vale e o bônus não podem ser usados no mesmo dia, em qualquer ordem. O bônus é usado de uma vez só: se a conta der menos, a diferença não fica guardada.</span></li>
+      <li><span>Só para consumo dentro das unidades. Não vale para delivery nem retirada.</span></li>
       <li><span>Se a conta der menos que o vale, o saldo fica guardado para a próxima visita. O vale não dá troco.</span></li>
       <li><span>Guarde este link: o saldo atualiza sozinho a cada uso.</span></li>
     </ul>
@@ -95,15 +96,16 @@ const titleCase = s => String(s||"").toLowerCase().replace(/(^|\s)(\S)/g,(m,a,b)
           ${full ? "" : '<div class="sub">de R$ 200,00</div>'}
         </div>
         <div class="perks">
-          <div class="perk"><b>Vale de R$ 200</b><span>Em qualquer unidade e qualquer item da comanda</span><em class="${Number(v.saldo) > 0 ? "" : "used"}">${Number(v.saldo) > 0 ? "Disponível" : "Usado"}</em></div>
+          <div class="perk"><b>Vale de R$ 200</b><span>Vale como dinheiro em qualquer item da comanda</span><em class="${Number(v.saldo) > 0 ? "" : "used"}">${Number(v.saldo) > 0 ? "Disponível" : "Usado"}</em></div>
           <div class="perk"><b>Cortesia</b><span>Qualquer drink ou sobremesa do cardápio, na visita em que usar o vale</span><em class="${v.cortesia_usada ? "used" : ""}">${v.cortesia_usada ? "Usada" : "Disponível"}</em></div>
-          <div class="perk"><b>Bônus de R$ 50</b><span>Para outra visita, de segunda a quinta, exceto feriados</span><em class="${v.bonus_usado ? "used" : ""}">${v.bonus_usado ? "Usado" : "Disponível"}</em></div>
+          <div class="perk"><b>Bônus de R$ 50</b><span>Em outra visita, numa mesa de rodízio, de segunda a quinta, exceto feriados</span><em class="${v.bonus_usado ? "used" : ""}">${v.bonus_usado ? "Usado" : "Disponível"}</em></div>
         </div>
         ${cancelled ? "" : `
         <div class="use">
           <div class="qrbox" id="qr"></div>
           <div><div class="lbl">Código</div><div class="code num">${esc(v.code)}</div><div class="sub">Mostre no caixa ao fechar a conta.</div></div>
         </div>`}
+        ${(v.usos||[]).length ? `<div><div class="lbl">Histórico de uso</div><div class="perks" style="margin-top:8px">${v.usos.map(u=>`<div class="perk"><b>${[Number(u.valor)>0?"Vale "+fmt(u.valor):"", u.cortesia?"Cortesia: "+esc(u.cortesia):"", u.bonus?"Bônus R$ 50,00":""].filter(Boolean).join(" + ")}</b><span>${esc(u.quando)} · ${esc(u.unidade)} · comanda ${esc(u.comanda)}</span></div>`).join("")}</div></div>` : ""}
         <div class="foot">
           <span><b>Válido até:</b> ${brDate(v.expires_on)}</span>
           <span><b>Unidades:</b> Savassi, Lourdes, São Pedro e Contagem</span>

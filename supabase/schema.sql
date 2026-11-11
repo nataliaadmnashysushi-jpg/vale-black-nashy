@@ -193,7 +193,12 @@ begin
     'code', v.code, 'nome', split_part(v.nome,' ',1), 'saldo', v.saldo, 'status', v.status,
     'expires_on', v.expires_on, 'bonus_expires_on', v.bonus_expires_on,
     'cortesia_usada', v.cortesia_day is not null, 'cortesia_item', v.cortesia_item,
-    'bonus_usado', v.bonus_day is not null);
+    'bonus_usado', v.bonus_day is not null,
+    'usos', (select coalesce(json_agg(json_build_object(
+        'quando', to_char(r.created_at at time zone 'America/Sao_Paulo','DD/MM/YYYY HH24:MI'),
+        'unidade', r.unit, 'comanda', r.comanda, 'valor', r.valor,
+        'cortesia', r.cortesia_item, 'bonus', r.bonus) order by r.created_at desc), '[]')
+      from redemptions r where r.voucher_id = v.id and r.undone_at is null));
 end $$;
 
 -- =====================================================================

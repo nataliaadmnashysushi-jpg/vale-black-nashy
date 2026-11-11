@@ -122,7 +122,7 @@ function render(v){
         <div class="sub" id="cortSub" hidden>
           <div class="seg"><label><input type="radio" name="ctipo" value="Drink" checked>Drink</label><label><input type="radio" name="ctipo" value="Sobremesa">Sobremesa</label></div>
           <div class="field"><label for="c-item">Qual item do cardápio</label><input id="c-item" autocomplete="off" placeholder="Ex.: nome do drink ou da sobremesa"></div></div></div></label>
-      <label class="opt ${bonusOff?"off":""}"><input type="checkbox" id="c-bonus" ${bonusOff?"disabled":""}><div><b style="font-weight:500">Bônus R$ 50</b><div class="muted small">${esc(v.bonus_bloqueio || "Uso único, em comanda separada do vale. Um bônus por rodízio.")}</div></div></label>
+      <label class="opt ${bonusOff?"off":""}"><input type="checkbox" id="c-bonus" ${bonusOff?"disabled":""}><div><b style="font-weight:500">Bônus R$ 50</b><div class="muted small">${esc(v.bonus_bloqueio || "Só em mesa de rodízio, um bônus por rodízio. Uso único: a diferença não fica guardada.")}</div></div></label>
     </div>
     <div class="field"><label for="c-com">Número da comanda</label><input id="c-com" inputmode="numeric" autocomplete="off"></div>
     <button class="btn" type="submit">Revisar e confirmar</button>
