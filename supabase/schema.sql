@@ -161,6 +161,7 @@ begin
   if length(trim(coalesce(p_nome,''))) < 3 then raise exception 'NOME_INVALIDO'; end if;
   tel := regexp_replace(coalesce(p_tel,''), '\D', '', 'g');
   if length(tel) not between 10 and 13 then raise exception 'TELEFONE_INVALIDO'; end if;
+  if length(tel) in (12,13) and left(tel,2) = '55' then tel := substr(tel,3); end if;   -- mesmo número com ou sem 55
   if p_qty is null or p_qty not between 1 and 4 then raise exception 'QUANTIDADE_INVALIDA'; end if;
   if p_unid not in ('Savassi','Lourdes','São Pedro','Contagem') then raise exception 'UNIDADE_INVALIDA'; end if;
 

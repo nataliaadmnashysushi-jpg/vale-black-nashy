@@ -49,6 +49,7 @@ function errMsg(e){
   if (ERRORS[key]) return ERRORS[key];
   if (/Failed to fetch|NetworkError/i.test(m)) return "Sem conexão. Confira a internet e tente de novo.";
   if (/Invalid login/i.test(m)) return "Senha incorreta.";
+  if (/JWT|expired|refresh token|not authenticated/i.test(m)) return "Sua sessão expirou. Toque em Sair e entre de novo com a senha.";
   return "Algo deu errado. Tente de novo. (" + m + ")";
 }
 // Lê "137,50", "137.50", "1.137,50" ou "50" como número
