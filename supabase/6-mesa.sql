@@ -1,0 +1,59 @@
+-- Vale Black · atualização 6 (11/11/2026)
+-- A unidade agora registra o NÚMERO DA MESA (mesmo campo de antes).
+-- Como a mesma mesa recebe outros clientes no mesmo dia, a regra "bônus e vale
+-- não entram na mesma conta" passa a olhar só as últimas 2 horas daquela mesa.
+-- Nada mais muda. Pode rodar mais de uma vez sem problema.
+
+create or replace function redeem(p_code text, p_valor numeric, p_cort_tipo text, p_cort_item text,
+                                  p_bonus boolean, p_comanda text, p_atendente text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v vouchers; d date := today_br(); unit text; why text; valor numeric := round(coalesce(p_valor,0),2);
+begin
+  if coalesce(my_role(),'') not in ('unit','admin') then raise exception 'SEM_PERMISSAO'; end if;
+  if length(trim(coalesce(p_cort_item,''))) < 2 then p_cort_item := null; end if;   -- cortesia sem nome não conta
+  unit := coalesce(my_unit(), 'Admin');
+  if length(trim(coalesce(p_atendente,''))) < 2 then raise exception 'ATENDENTE_OBRIGATORIO'; end if;
+  if length(trim(coalesce(p_comanda,''))) < 1 then raise exception 'COMANDA_OBRIGATORIA'; end if;
+
+  select * into v from vouchers where code = upper(trim(p_code)) for update;  -- trava contra uso duplo
+  if not found then raise exception 'VALE_NAO_ENCONTRADO'; end if;
+  if v.status <> 'ativo' then raise exception 'VALE_CANCELADO'; end if;
+  if exists (select 1 from redemptions x where x.voucher_id = v.id and x.comanda = trim(p_comanda)
+             and x.valor = round(coalesce(p_valor,0),2) and x.bonus = coalesce(p_bonus,false) and x.undone_at is null
+             and x.created_at > now() - interval '3 minutes') then
+    raise exception 'USO_DUPLICADO';                -- toque duplo ou internet lenta
+  end if;
+
+  if coalesce(p_bonus,false) then
+    if valor > 0 or p_cort_item is not null then raise exception 'BONUS_JUNTO_COM_VALE'; end if;
+    if exists (select 1 from redemptions x where x.unit = unit_name_now() and x.day = d and x.comanda = trim(p_comanda)
+               and x.undone_at is null and not x.bonus and x.created_at > now() - interval '2 hours') then raise exception 'COMANDA_COM_VALE'; end if;
+    why := bonus_block_reason(v, d);
+    if why is not null then raise exception 'BONUS_BLOQUEADO:%', why; end if;
+    update vouchers set bonus_day = d where id = v.id;
+  else
+    if valor <= 0 and p_cort_item is null then raise exception 'NADA_SELECIONADO'; end if;
+    if exists (select 1 from redemptions x where x.unit = unit_name_now() and x.day = d and x.comanda = trim(p_comanda)
+               and x.undone_at is null and x.bonus and x.created_at > now() - interval '2 hours') then raise exception 'COMANDA_COM_BONUS'; end if;
+    if d > v.expires_on then raise exception 'VALE_VENCIDO'; end if;
+    if exists (select 1 from vouchers w where w.order_id = v.order_id and w.bonus_day = d) then raise exception 'BONUS_USADO_HOJE'; end if;
+    if valor < 0 or valor > v.saldo then raise exception 'VALOR_ACIMA_DO_SALDO'; end if;
+    if p_cort_item is not null then
+      if v.cortesia_day is not null then raise exception 'CORTESIA_JA_USADA'; end if;
+      if valor <= 0 then raise exception 'CORTESIA_SO_COM_VALE'; end if;
+      if p_cort_tipo not in ('Drink','Sobremesa') then raise exception 'CORTESIA_INVALIDA'; end if;
+    end if;
+    update vouchers set
+      saldo = saldo - valor,
+      last_vale_day = case when valor > 0 then d else last_vale_day end,
+      cortesia_tipo = coalesce(p_cort_tipo, cortesia_tipo) ,
+      cortesia_item = coalesce(p_cort_item, cortesia_item),
+      cortesia_day  = case when p_cort_item is not null then d else cortesia_day end
+    where id = v.id;
+  end if;
+
+  insert into redemptions (voucher_id, day, unit, atendente, comanda, valor, cortesia_tipo, cortesia_item, bonus)
+  values (v.id, d, unit, trim(p_atendente), trim(p_comanda), valor,
+          case when p_cort_item is not null then p_cort_tipo end, p_cort_item, coalesce(p_bonus,false));
+  return find_voucher(v.code);
+end $$;

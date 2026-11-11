@@ -51,7 +51,8 @@ async function loadDay(){
     const list = await rpc("unit_today");
     if (!list.length) { box.innerHTML = '<p class="muted small">Nenhum vale usado hoje.</p>'; return; }
     const tot = list.reduce((a,u)=>a+Number(u.valor)+(u.bonus?50:0),0);
-    box.innerHTML = `<p class="small">${list.length} uso(s) · total ${fmt(tot)} (vales + bônus)</p><div class="hist">${list.map(u=>`<div><span class="num muted">${esc(u.hora)}</span><span>${esc(u.code)} · comanda ${esc(u.comanda)} · ${[Number(u.valor)>0?"Vale "+fmt(u.valor):"", u.cortesia?"cortesia "+esc(u.cortesia):"", u.bonus?"Bônus R$ 50,00":""].filter(Boolean).join(" + ")}</span><span class="muted">${esc(u.atendente)}</span></div>`).join("")}</div><p class="muted tiny">Confira no fechamento: cada comanda desta lista precisa ter o desconto do vale lançado no caixa.</p>`;
+    const coms = new Set(list.map(u => normCom(u.comanda))).size;
+    box.innerHTML = `<p class="small">${coms} mesa(s) · ${list.length} uso(s) · total ${fmt(tot)} (vales + bônus)</p><div class="hist">${list.map(u=>`<div><span class="num muted">${esc(u.hora)}</span><span>${esc(u.code)} · mesa ${esc(u.comanda)} · ${[Number(u.valor)>0?"Vale "+fmt(u.valor):"", u.cortesia?"cortesia "+esc(u.cortesia):"", u.bonus?"Bônus R$ 50,00":""].filter(Boolean).join(" + ")}</span><span class="muted">${esc(u.atendente)}</span></div>`).join("")}</div><p class="muted tiny">Confira no fechamento: cada mesa desta lista precisa ter o desconto do vale lançado no caixa.</p>`;
   } catch(e) { box.innerHTML = `<p class="muted small">${esc(errMsg(e))}</p>`; }
 }
 $("#dayBox").addEventListener("toggle", e => { if (e.target.open) loadDay(); });
@@ -109,7 +110,7 @@ async function findVoucher(code){
 
 let currentCode = "";
 function render(v){
-  currentCode = v.code;
+  currentCode = v.code; prev = { com:"", total:0, codes:[], same:null };
   const out = $("#result");
   const cancelled = v.status !== "ativo";
   const valeOff = cancelled || v.vencido || v.saldo <= 0 || !!v.vale_bloqueio;
@@ -137,8 +138,8 @@ function render(v){
           <div class="field"><label for="c-item">Qual item do cardápio</label><input id="c-item" autocomplete="off" placeholder="Ex.: nome do drink ou da sobremesa"></div></div></div></label>
       <label class="opt ${bonusOff?"off":""}"><input type="checkbox" id="c-bonus" ${bonusOff?"disabled":""}><div><b style="font-weight:500">Bônus R$ 50</b><div class="muted small">${esc(v.bonus_bloqueio || "Só em mesa de rodízio, um bônus por rodízio. Uso único: a diferença não fica guardada.")}</div></div></label>
     </div>
-    <div class="field"><label for="c-conta">Valor total da comanda (com serviço)</label><input id="c-conta" inputmode="decimal" autocomplete="off" placeholder="0,00"><span class="muted tiny">Mais de um vale na mesma comanda? No segundo vale, digite só o que ainda falta pagar.</span></div>
-    <div class="field"><label for="c-com">Número da comanda</label><input id="c-com" inputmode="numeric" autocomplete="off"></div>
+    <div class="field"><label for="c-com">Número da mesa</label><input id="c-com" inputmode="numeric" autocomplete="off"><div class="card stack" id="comNote" hidden style="padding:12px"></div></div>
+    <div class="field"><label for="c-conta">Valor total da conta da mesa (com serviço)</label><input id="c-conta" inputmode="decimal" autocomplete="off" placeholder="0,00"><span class="muted tiny">Digite sempre o total da conta da mesa, mesmo que outro vale já tenha sido usado nela.</span></div>
     <button class="btn" type="submit">Revisar e confirmar</button>
   </form>
   <div id="confirm"></div>
@@ -148,9 +149,12 @@ function render(v){
   const sync = () => { $("#valeSub").hidden = !cv.checked; $("#cortSub").hidden = !cc.checked; };
   cv.addEventListener("change", () => { if (cv.checked) cb.checked = false; else cc.checked = false; sync(); });
   cc.addEventListener("change", () => { if (cc.checked) { cv.checked = true; cb.checked = false; } sync(); });
-  cb.addEventListener("change", () => { if (cb.checked && (cv.checked || cc.checked)) { toast("O bônus não entra na mesma comanda do vale."); cb.checked = false; } });
-  $("#c-conta").addEventListener("input", () => { const t = parseMoney($("#c-conta").value);
-    $("#calc").textContent = t > 0 ? `Vale paga ${fmt(Math.min(t, v.saldo))} · cliente paga ${fmt(Math.max(t - v.saldo, 0))} · saldo fica ${fmt(Math.max(v.saldo - t, 0))}` : "O sistema desconta do vale o valor da conta, até o saldo."; });
+  cb.addEventListener("change", () => { if (cb.checked && (cv.checked || cc.checked)) { toast("O bônus não entra na mesma conta do vale."); cb.checked = false; } });
+  const calc = () => { const pt = prev.same ? prev.total : 0, t = parseMoney($("#c-conta").value), f = Math.max(t - pt, 0), pg = Math.min(f, Number(v.saldo));
+    $("#calc").textContent = t > 0 ? `${pt > 0 ? `Já pago nesta conta ${fmt(pt)} · falta ${fmt(f)} · ` : ""}Vale paga ${fmt(pg)} · cliente paga ${fmt(f - pg)} · saldo fica ${fmt(Number(v.saldo) - pg)}` : "O sistema desconta do vale o valor da conta, até o saldo."; };
+  $("#c-conta").addEventListener("input", calc);
+  let tmr; $("#c-com").addEventListener("input", () => { clearTimeout(tmr); tmr = setTimeout(async () => { await checkComanda($("#c-com").value); calc(); }, 400); });
+  $("#c-com").addEventListener("blur", async () => { await checkComanda($("#c-com").value); calc(); });
   $("#use").addEventListener("submit", e => { e.preventDefault(); review(v); });
 }
 
@@ -166,21 +170,27 @@ function review(v){
   const cv=$("#c-vale").checked, cc=$("#c-cort").checked, cb=$("#c-bonus").checked;
   const com=$("#c-com").value.trim(), att=$("#att").value.trim();
   const conta = parseMoney($("#c-conta").value);
-  const val = Math.min(conta, Number(v.saldo));
+  const pt = prev.same ? prev.total : 0, falta = Math.max(conta - pt, 0);
+  const val = Math.min(falta, Number(v.saldo));
   if (att.length < 2) return toast("Escreva o seu nome no topo antes de confirmar.");
   if (!cv && !cb) return toast("Marque o que o cliente vai usar.");
-  if (conta <= 0) return toast("Digite o valor total da comanda.");
-  if (conta > 5000) return toast("Confira o valor da comanda: " + fmt(conta) + ".");
-  if (!com) return toast("Digite o número da comanda.");
+  if (conta <= 0) return toast("Digite o valor total da conta da mesa.");
+  if (conta > 5000) return toast("Confira o valor da conta: " + fmt(conta) + ".");
+  if (!com) return toast("Digite o número da mesa.");
+  if (normCom(com) !== prev.com) return checkComanda(com).then(() => review(v));
+  if (prev.total > 0 && prev.same === null) { $("#comNote").scrollIntoView({ behavior:"smooth", block:"center" }); return toast("Responda se é a mesma conta da mesa."); }
+  if (prev.same && cb && prev.vale) return toast("Nesta conta já foi usado vale. O bônus não entra na mesma conta do vale.");
+  if (prev.same && cv && prev.bonus) return toast("Nesta conta já foi usado bônus. O vale não entra na mesma conta do bônus.");
+  if (pt > 0 && falta <= 0) return toast("Essa conta já foi paga pelos vales registrados nela. Confira o valor total.");
   store.set("atendente", att);
   const tipo = cc ? document.querySelector('input[name="ctipo"]:checked').value : null, item = cc ? $("#c-item").value.trim() : null;
   if (cc && item.length < 2) return toast("Escreva qual drink ou sobremesa o cliente escolheu.");
   const parts = []; if (cv) parts.push("Vale " + fmt(val)); if (cc) parts.push("cortesia " + item); if (cb) parts.push("Bônus R$ 50,00");
   $("#confirm").innerHTML = `<div class="card confirm stack"><b style="font-weight:500">Confirmar no vale ${esc(v.code)}?</b>
     <p>${esc(parts.join(" + "))}</p>
-    <p class="small">Conta ${fmt(conta)}${cv ? ` · cliente paga ${fmt(Math.max(conta - val, 0))} · saldo do vale fica ${fmt(Number(v.saldo) - val)}` : ""}${cb ? ` · cliente paga ${fmt(Math.max(conta - 50, 0))}` : ""}</p>
-    ${cb && conta < 50 ? `<p class="err">A conta é menor que R$ 50. A diferença do bônus não fica guardada. Avise o cliente antes de confirmar.</p>` : ""}
-    <p class="muted small">Comanda ${esc(com)} · ${esc(att)} · cliente ${esc(v.nome)}</p>
+    <p class="small">Conta ${fmt(conta)}${pt > 0 ? ` · já pago com ${esc(prev.codes.join(", "))}: ${fmt(pt)} · falta ${fmt(falta)}` : ""}${cv ? ` · cliente paga ${fmt(Math.max(falta - val, 0))} · saldo do vale fica ${fmt(Number(v.saldo) - val)}` : ""}${cb ? ` · cliente paga ${fmt(Math.max(falta - 50, 0))}` : ""}</p>
+    ${cb && falta < 50 ? `<p class="err">O que falta pagar é menor que R$ 50. A diferença do bônus não fica guardada. Avise o cliente antes de confirmar.</p>` : ""}
+    <p class="muted small">Mesa ${esc(com)} · ${esc(att)} · cliente ${esc(v.nome)}</p>
     <div class="row" style="justify-content:flex-start"><button class="btn ok" type="button" id="yes">Confirmar</button><button class="btn ghost" type="button" id="no">Corrigir</button></div></div>`;
   $("#confirm").scrollIntoView({ behavior:"smooth", block:"center" });
   $("#no").onclick = () => $("#confirm").innerHTML = "";
@@ -192,13 +202,41 @@ function review(v){
     } catch(e) { toast(errMsg(e)); $("#yes").disabled = false; }
   };
 }
+// Mesa que já usou vale ou bônus hoje nesta unidade: o atendente diz se é a mesma conta
+// (mesmo cliente) ou outro cliente que sentou depois na mesma mesa.
+let prev = { com:"", total:0, codes:[], same:null }, dayCache = { at:0, list:[] };
+function normCom(c){ return String(c || "").trim().toUpperCase().replace(/\s+/g, "").replace(/^0+(?=.)/, ""); }
+async function checkComanda(raw){
+  const c = normCom(raw), note = $("#comNote");
+  if (c === prev.com && c) return;
+  prev = { com:c, total:0, codes:[], same:null };
+  if (note) note.hidden = true;
+  if (!c) return;
+  try {
+    if (Date.now() - dayCache.at > 15000) dayCache = { at: Date.now(), list: await rpc("unit_today") };
+    const uses = dayCache.list.filter(u => normCom(u.comanda) === c && (Number(u.valor) > 0 || u.bonus));
+    prev.total = uses.reduce((a,u) => a + Number(u.valor) + (u.bonus ? 50 : 0), 0);
+    prev.codes = [...new Set(uses.map(u => u.code))];
+    prev.vale = uses.some(u => Number(u.valor) > 0); prev.bonus = uses.some(u => u.bonus);
+    prev.desc = uses.map(u => `${u.code} às ${u.hora} (${Number(u.valor) > 0 ? "vale " + fmt(u.valor) : "bônus R$ 50,00"})`).join(", ");
+  } catch { /* sem conexão: segue sem o aviso */ }
+  if (!note || prev.total <= 0) return;
+  note.hidden = false;
+  note.innerHTML = `<span class="small">A mesa <b>${esc(raw.trim())}</b> já usou hoje: ${esc(prev.desc)}. <b>É a mesma conta?</b></span>
+    <div class="row" style="gap:8px;justify-content:flex-start;flex-wrap:wrap"><button class="btn sm" type="button" id="sameYes">Sim, mesma conta</button><button class="btn sm ghost" type="button" id="sameNo">Não, é outro cliente</button></div>`;
+  const pick = same => { prev.same = same; note.innerHTML = `<span class="small">${same ? `Mesma conta: o sistema desconta ${fmt(prev.total)} que já foram pagos.` : "Outro cliente: conta nova."} <a href="#" id="sameUndo">Trocar</a></span>`;
+    $("#sameUndo").onclick = e => { e.preventDefault(); const r = prev.com; prev.com = ""; checkComanda($("#c-com").value || r); };
+    $("#c-conta").dispatchEvent(new Event("input")); };
+  $("#sameYes").onclick = () => pick(true); $("#sameNo").onclick = () => pick(false);
+}
+
 // Depois de registrar: mostra o resumo e deixa a tela pronta para o próximo vale.
 function done(nv, what, com){
-  $("#code").value = ""; $("#confirm").innerHTML = "";
+  $("#code").value = ""; $("#confirm").innerHTML = ""; dayCache.at = 0;
   $("#result").innerHTML = `<div class="card stack done-card">
     <span class="pill ok">Registrado</span>
     <b style="font-weight:500">${esc(nv.code)} · ${esc(nv.nome)}</b>
-    <p class="small" style="margin:0">${esc(what)} · comanda ${esc(com)}</p>
+    <p class="small" style="margin:0">${esc(what)} · mesa ${esc(com)}</p>
     <p class="small" style="margin:0">Saldo que ficou no vale: <b>${fmt(nv.saldo)}</b></p>
     <button class="btn" type="button" id="next">Validar outro vale</button>
     <button class="btn ghost sm" type="button" id="again" style="align-self:center">Abrir este vale de novo (corrigir ou desfazer)</button>

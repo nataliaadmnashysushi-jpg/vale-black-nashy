@@ -109,7 +109,7 @@ const titleCase = s => String(s||"").toLowerCase().replace(/(^|\s)(\S)/g,(m,a,b)
           <div class="qrbox" id="qr"></div>
           <div><div class="lbl">Código</div><div class="code num">${esc(v.code)}</div><div class="sub">Mostre no caixa ao fechar a conta.</div></div>
         </div>`}
-        ${(v.usos||[]).length ? `<div><div class="lbl">Histórico de uso</div><div class="perks" style="margin-top:8px">${v.usos.map(u=>`<div class="perk"><b>${[Number(u.valor)>0?"Vale "+fmt(u.valor):"", u.cortesia?"Cortesia: "+esc(u.cortesia):"", u.bonus?"Bônus R$ 50,00":""].filter(Boolean).join(" + ")}</b><span>${esc(u.quando)} · ${esc(u.unidade)} · comanda ${esc(u.comanda)}</span></div>`).join("")}</div></div>` : ""}
+        ${(v.usos||[]).length ? `<div><div class="lbl">Histórico de uso</div><div class="perks" style="margin-top:8px">${v.usos.map(u=>`<div class="perk"><b>${[Number(u.valor)>0?"Vale "+fmt(u.valor):"", u.cortesia?"Cortesia: "+esc(u.cortesia):"", u.bonus?"Bônus R$ 50,00":""].filter(Boolean).join(" + ")}</b><span>${esc(u.quando)} · ${esc(u.unidade)} · mesa ${esc(u.comanda)}</span></div>`).join("")}</div></div>` : ""}
         <div class="foot">
           <span><b>Válido até:</b> ${brDate(v.expires_on)}</span>
           <span><b>Unidades:</b> Savassi, Lourdes, São Pedro e Contagem</span>
