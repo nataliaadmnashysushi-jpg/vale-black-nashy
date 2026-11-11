@@ -81,7 +81,7 @@ function renderKpis(){
   const today = new Date().toLocaleDateString("en-CA",{timeZone:"America/Sao_Paulo"});
   const approved = S.orders.filter(o=>o.status==="aprovado");
   const cash = approved.reduce((a,o)=>a+o.qty*Number(S.settings.vale_value),0);
-  const usedToday = S.orders.filter(o=>o.sale_day===today && ["pendente","aprovado"].includes(o.status)).reduce((a,o)=>a+o.qty,0);
+  const usedToday = S.orders.filter(o=>o.sale_day===today && (o.status==="aprovado" || (o.status==="pendente" && Date.now()-new Date(o.created_at) < 3*3600e3))).reduce((a,o)=>a+o.qty,0);
   const pend = S.orders.filter(o=>o.status==="pendente");
   $("#kpis").innerHTML = [
     ["Vales aprovados", S.vouchers.filter(v=>v.status==="ativo").length],
@@ -117,7 +117,7 @@ function render(){
   if (S.tab === "orders") {
     const list = S.orders.filter(o=>match(o.id,o.nome,o.telefone,o.status));
     c.innerHTML = orderRows(list, o=> o.status==="aprovado" ? `${o.receipt_path ? `<button class="btn sm ghost" data-receipt="${o.id}">Ver comprovante</button>` : `<button class="btn sm" data-attach="${o.id}">Anexar comprovante</button>`}<button class="btn sm ghost" data-resend="${o.id}">Reenviar vale</button><button class="btn sm ghost" data-cancel="${o.id}">Cancelar (desistência)</button>`
-      : o.status==="pendente" ? `<button class="btn sm ok" data-approve="${o.id}">Aprovar</button>` : "");
+      : ["pendente","recusado"].includes(o.status) ? `<button class="btn sm ok" data-approve="${o.id}">Aprovar</button>` : "");
   }
   if (S.tab === "vouchers") {
     const list = S.vouchers.filter(v=>match(v.code,v.nome,v.telefone));
@@ -224,7 +224,7 @@ $("#content").addEventListener("click", async e => {
   if (b.dataset.approve) receiptModal(o, true);
   if (b.dataset.attach) receiptModal(o, false);
   if (b.dataset.receipt) openReceipt(o);
-  if (b.dataset.reject) ask(`Marcar o pedido #${id} como Pix não encontrado? O vale volta para o lote.`, "Marcar", n => rpc("reject_order", { p_id:id, p_note:n }), true);
+  if (b.dataset.reject) ask(`Marcar o pedido #${id} como Pix não encontrado? O vale volta para o lote. Se o Pix aparecer depois, você ainda pode aprovar pela aba Todos os pedidos.`, "Marcar", n => rpc("reject_order", { p_id:id, p_note:n }), true);
   if (b.dataset.cancel) ask(`Cancelar o pedido #${id} de ${o.nome}? Os vales ficam bloqueados. Combine a devolução do Pix com o financeiro.`, "Cancelar pedido", n => rpc("cancel_order", { p_id:id, p_note:n }), true);
   if (b.dataset.resend) sendModal(o, S.vouchers.filter(v=>v.order_id===id && v.status==="ativo"));
   if (b.dataset.undo) ask("Desfazer este uso? O saldo, a cortesia ou o bônus voltam para o vale.", "Desfazer", () => rpc("undo_redemption", { p_id:id }));

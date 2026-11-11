@@ -94,7 +94,9 @@ async function findVoucher(code){
   render(v);
 }
 
+let currentCode = "";
 function render(v){
+  currentCode = v.code;
   const out = $("#result");
   const cancelled = v.status !== "ativo";
   const valeOff = cancelled || v.vencido || v.saldo <= 0 || !!v.vale_bloqueio;
@@ -126,7 +128,7 @@ function render(v){
     <button class="btn" type="submit">Revisar e confirmar</button>
   </form>
   <div id="confirm"></div>
-  ${v.historico.length ? `<div class="stack"><span class="eyebrow">Histórico deste vale</span><div class="hist">${v.historico.map(h=>`<div><span class="num muted">${esc(h.quando)}</span><span>${[h.valor>0?"Vale "+fmt(h.valor):"", h.cortesia?"cortesia "+esc(h.cortesia):"", h.bonus?"Bônus R$ 50,00":""].filter(Boolean).join(" + ")}</span><span class="muted">${esc(h.unidade)}</span></div>`).join("")}</div></div>` : ""}`;
+  ${v.historico.length ? `<div class="stack"><span class="eyebrow">Histórico deste vale</span><div class="hist">${v.historico.map(h=>`<div><span class="num muted">${esc(h.quando)}</span><span>${[h.valor>0?"Vale "+fmt(h.valor):"", h.cortesia?"cortesia "+esc(h.cortesia):"", h.bonus?"Bônus R$ 50,00":""].filter(Boolean).join(" + ")}</span><span class="muted">${esc(h.unidade)}${h.pode_desfazer ? ` <button class="btn sm ghost" type="button" data-undo="${h.id}">Desfazer</button>` : ""}</span></div>`).join("")}</div><p class="muted tiny">Registrou errado? Dá para desfazer em até 30 minutos. Depois disso, fale com a Natália.</p></div>` : ""}`;
 
   const cv=$("#c-vale"), cc=$("#c-cort"), cb=$("#c-bonus");
   const sync = () => { $("#valeSub").hidden = !cv.checked; $("#cortSub").hidden = !cc.checked; };
@@ -137,6 +139,14 @@ function render(v){
     $("#valorBox").hidden = r.value !== "part" || !r.checked; if (!$("#valorBox").hidden) $("#c-valor").focus(); }));
   $("#use").addEventListener("submit", e => { e.preventDefault(); review(v); });
 }
+
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-undo]"); if (!b) return;
+  if (b.dataset.sure !== "1") { b.dataset.sure = "1"; b.textContent = "Tocar de novo para desfazer"; return; }
+  b.disabled = true;
+  try { await rpc("undo_redemption", { p_id: Number(b.dataset.undo) }); toast("Registro desfeito."); findVoucher(currentCode); }
+  catch(ex) { toast(errMsg(ex)); b.disabled = false; }
+});
 
 function review(v){
   const cv=$("#c-vale").checked, cc=$("#c-cort").checked, cb=$("#c-bonus").checked;

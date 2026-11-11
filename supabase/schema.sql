@@ -141,7 +141,7 @@ declare s settings; used int; d date := today_br();
 begin
   select * into s from settings where id = 1;
   select coalesce(sum(qty),0) into used from orders
-   where sale_day = d and status in ('pendente','aprovado');
+   where sale_day = d and (status = 'aprovado' or (status = 'pendente' and created_at > now() - interval '3 hours'));
   return json_build_object(
     'open', d between s.sales_start and s.sales_end and used < s.daily_limit,
     'before', d < s.sales_start, 'after', d > s.sales_end,
@@ -171,7 +171,7 @@ begin
     raise exception 'PEDIDO_PENDENTE';           -- evita alguém segurar vários lotes
   end if;
   select coalesce(sum(qty),0) into used from orders
-   where sale_day = d and status in ('pendente','aprovado');
+   where sale_day = d and (status = 'aprovado' or (status = 'pendente' and created_at > now() - interval '3 hours'));
   if used + p_qty > s.daily_limit then
     raise exception 'ESGOTADO_HOJE:%', greatest(s.daily_limit - used, 0);
   end if;
@@ -228,6 +228,7 @@ begin
     'bonus_bloqueio', bonus_block_reason(v, d),
     'vale_bloqueio', case when v.bonus_day = d then 'O bônus foi usado hoje. O vale fica para outra visita.' end,
     'historico', (select coalesce(json_agg(json_build_object(
+        'id', r.id, 'pode_desfazer', r.unit = unit_name_now() and r.created_at > now() - interval '30 minutes',
         'quando', to_char(r.created_at at time zone 'America/Sao_Paulo','DD/MM HH24:MI'),
         'unidade', r.unit, 'atendente', r.atendente, 'comanda', r.comanda, 'valor', r.valor,
         'cortesia', r.cortesia_item, 'bonus', r.bonus) order by r.created_at desc), '[]')
@@ -306,7 +307,7 @@ begin
   if length(trim(coalesce(p_receipt,''))) = 0 then raise exception 'COMPROVANTE_OBRIGATORIO'; end if;
   select * into o from orders where id = p_id for update;
   if not found then raise exception 'PEDIDO_NAO_ENCONTRADO'; end if;
-  if o.status <> 'pendente' then raise exception 'PEDIDO_JA_DECIDIDO'; end if;
+  if o.status not in ('pendente','recusado') then raise exception 'PEDIDO_JA_DECIDIDO'; end if;
   select * into s from settings where id = 1;
   for i in 1..o.qty loop
     c := new_code();
@@ -344,9 +345,12 @@ create or replace function undo_redemption(p_id bigint) returns void
 language plpgsql security definer set search_path = public as $$
 declare r redemptions;
 begin
-  if not is_admin() then raise exception 'SEM_PERMISSAO'; end if;
+  if my_role() not in ('unit','admin') then raise exception 'SEM_PERMISSAO'; end if;
   select * into r from redemptions where id = p_id and undone_at is null for update;
   if not found then raise exception 'USO_NAO_ENCONTRADO'; end if;
+  if not is_admin() and (r.unit <> my_unit() or r.created_at < now() - interval '30 minutes') then
+    raise exception 'DESFAZER_SO_ADMIN';
+  end if;
   update vouchers set
     saldo = saldo + r.valor,
     bonus_day = case when r.bonus then null else bonus_day end,
