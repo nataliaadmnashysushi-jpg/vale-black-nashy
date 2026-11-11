@@ -264,9 +264,10 @@ end $$;
 create or replace function redeem(p_code text, p_valor numeric, p_cort_tipo text, p_cort_item text,
                                   p_bonus boolean, p_comanda text, p_atendente text)
 returns json language plpgsql security definer set search_path = public as $$
-declare v vouchers; d date := today_br(); unit text; why text; valor numeric := coalesce(p_valor,0);
+declare v vouchers; d date := today_br(); unit text; why text; valor numeric := round(coalesce(p_valor,0),2);
 begin
   if coalesce(my_role(),'') not in ('unit','admin') then raise exception 'SEM_PERMISSAO'; end if;
+  if length(trim(coalesce(p_cort_item,''))) < 2 then p_cort_item := null; end if;   -- cortesia sem nome não conta
   unit := coalesce(my_unit(), 'Admin');
   if length(trim(coalesce(p_atendente,''))) < 2 then raise exception 'ATENDENTE_OBRIGATORIO'; end if;
   if length(trim(coalesce(p_comanda,''))) < 1 then raise exception 'COMANDA_OBRIGATORIA'; end if;
@@ -275,7 +276,7 @@ begin
   if not found then raise exception 'VALE_NAO_ENCONTRADO'; end if;
   if v.status <> 'ativo' then raise exception 'VALE_CANCELADO'; end if;
   if exists (select 1 from redemptions x where x.voucher_id = v.id and x.comanda = trim(p_comanda)
-             and x.valor = coalesce(p_valor,0) and x.bonus = coalesce(p_bonus,false) and x.undone_at is null
+             and x.valor = round(coalesce(p_valor,0),2) and x.bonus = coalesce(p_bonus,false) and x.undone_at is null
              and x.created_at > now() - interval '3 minutes') then
     raise exception 'USO_DUPLICADO';                -- toque duplo ou internet lenta
   end if;
