@@ -129,7 +129,7 @@ function render(v){
     <span class="eyebrow">O que o cliente vai usar agora</span>
     <div class="choice">
       <label class="opt ${valeOff?"off":""}"><input type="checkbox" id="c-vale" ${valeOff?"disabled":""}><div><b style="font-weight:500">Crédito do vale</b><div class="muted small">${esc(valeWhy)}</div>
-        <div class="sub" id="valeSub" hidden><p class="small" id="calc">O sistema desconta do vale o valor da conta, até o saldo.</p></div></div></div></div></label>
+        <div class="sub" id="valeSub" hidden><p class="small" id="calc">O sistema desconta do vale o valor da conta, até o saldo.</p></div></div></label>
       <label class="opt ${cortOff?"off":""}"><input type="checkbox" id="c-cort" ${cortOff?"disabled":""}><div><b style="font-weight:500">Cortesia</b><div class="muted small">${v.cortesia_usada ? "Já usada: " + esc(v.cortesia_item) : "Qualquer drink ou sobremesa do cardápio, só junto com o crédito do vale. Não vale com desconto de aniversário."}</div>
         <div class="sub" id="cortSub" hidden>
           <div class="seg"><label><input type="radio" name="ctipo" value="Drink" checked>Drink</label><label><input type="radio" name="ctipo" value="Sobremesa">Sobremesa</label></div>
