@@ -52,14 +52,14 @@ async function loadDay(){
     if (!list.length) { box.innerHTML = '<p class="muted small">Nenhum vale usado hoje.</p>'; return; }
     const tot = list.reduce((a,u)=>a+Number(u.valor)+(u.bonus?50:0),0);
     const coms = new Set(list.map(u => normCom(u.comanda))).size;
-    box.innerHTML = `<p class="small">${coms} mesa(s) · ${list.length} uso(s) · total ${fmt(tot)} (vales + bônus)</p><div class="hist">${list.map(u=>`<div><span class="num muted">${esc(u.hora)}</span><span>${esc(u.code)} · mesa ${esc(u.comanda)} · ${[Number(u.valor)>0?"Vale "+fmt(u.valor):"", u.cortesia?"cortesia "+esc(u.cortesia):"", u.bonus?"Bônus R$ 50,00":""].filter(Boolean).join(" + ")}</span><span class="muted">${esc(u.atendente)}</span></div>`).join("")}</div><span class="eyebrow" style="margin-top:10px">Por mesa (para bater com o caixa)</span><div class="hist">${byTable(list)}</div><p class="muted tiny">Confira no fechamento: cada mesa desta lista precisa ter, no caixa, o mesmo desconto de vale e bônus.</p>`;
+    box.innerHTML = `<p class="small">${coms} mesa(s) · ${list.length} uso(s) · total ${fmt(tot)} (vales + bônus)</p><div class="hist">${list.map(u=>`<div><span class="num muted">${esc(u.hora)}</span><span>${esc(u.code)} · mesa ${esc(u.comanda)} · ${[Number(u.valor)>0?"Vale "+fmt(u.valor):"", u.cortesia?"cortesia "+esc(u.cortesia):"", u.bonus?"Bônus R$ 50,00":""].filter(Boolean).join(" + ")}</span><span class="muted">${esc(u.atendente)}</span></div>`).join("")}</div><span class="eyebrow" style="margin-top:10px">Por mesa (para bater com o caixa)</span><div class="hist">${byTable(list)}</div><p class="muted tiny">Confira no caixa: em cada mesa, o que foi recebido mais o desconto total precisa dar o valor da mesa.</p>`;
   } catch(e) { box.innerHTML = `<p class="muted small">${esc(errMsg(e))}</p>`; }
 }
 function byTable(list){
   const g = new Map();
-  for (const u of list) { const k = normCom(u.comanda); const t = g.get(k) || { mesa:u.comanda, desc:0, n:0, conta:0, hora:u.hora };
-    t.desc += Number(u.valor) + (u.bonus ? 50 : 0); t.n++; if (Number(u.conta) > 0) t.conta = Number(u.conta); t.hora = u.hora; g.set(k, t); }
-  return [...g.values()].map(t => `<div><span class="num muted">${esc(t.hora)}</span><span>Mesa ${esc(t.mesa)} · ${t.n} uso(s) · desconto ${fmt(t.desc)}${t.conta ? ` · conta ${fmt(t.conta)}` : ""}</span><span></span></div>`).join("");
+  for (const u of list) { const k = normCom(u.comanda); const t = g.get(k) || { mesa:u.comanda, desc:0, uses:[] };
+    t.desc += Number(u.valor) + (u.bonus ? 50 : 0); t.uses.push(u); g.set(k, t); }
+  return [...g.values()].map(t => `<div style="display:block"><b style="font-weight:500">Mesa ${esc(t.mesa)} · ${t.uses.length} uso(s) · desconto total ${fmt(t.desc)}</b>${t.uses.map(u => `<div class="muted small" style="display:block">${esc(u.hora)} · ${esc(u.code)} · ${u.bonus ? "Bônus R$ 50,00" : "Vale " + fmt(u.valor)}${Number(u.conta) > 0 ? ` · conta ${fmt(u.conta)}` : ""}</div>`).join("")}</div>`).join("");
 }
 $("#dayBox").addEventListener("toggle", e => { if (e.target.open) loadDay(); });
 

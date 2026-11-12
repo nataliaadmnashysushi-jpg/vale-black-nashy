@@ -133,11 +133,11 @@ function render(){
   }
   if (S.tab === "uses") {
     const list = S.uses.filter(u=>match(u.vouchers?.code,u.vouchers?.nome,u.unit,u.atendente,u.comanda));
-    c.innerHTML = `<div class="tablewrap"><table><thead><tr><th>Quando</th><th>Unidade</th><th>Atendente</th><th>Vale</th><th>Uso</th><th>Mesa</th><th></th></tr></thead><tbody>${
+    c.innerHTML = `<div class="tablewrap"><table><thead><tr><th>Quando</th><th>Unidade</th><th>Atendente</th><th>Vale</th><th>Uso</th><th>Mesa</th><th>Conta</th><th></th></tr></thead><tbody>${
       list.map(u=>`<tr style="${u.undone_at?"opacity:.5":""}"><td class="num">${dt(u.created_at)}</td><td>${esc(u.unit)}</td><td>${esc(u.atendente)}</td>
         <td class="num">${esc(u.vouchers?.code)}<div class="muted tiny">${esc(u.vouchers?.nome)}</div></td>
         <td>${[Number(u.valor)>0?"Vale "+fmt(u.valor):"", u.cortesia_item?"cortesia "+esc(u.cortesia_item):"", u.bonus?"Bônus R$ 50,00":""].filter(Boolean).join(" + ")}</td>
-        <td class="num">${esc(u.comanda)}</td><td>${u.undone_at?'<span class="pill mute">Desfeito</span>':`<button class="btn sm ghost" data-undo="${u.id}">Desfazer</button>`}</td></tr>`).join("") || '<tr><td colspan="7" class="muted">Nenhum uso ainda.</td></tr>'}</tbody></table></div>`;
+        <td class="num">${esc(u.comanda)}</td><td class="num">${Number(u.conta) > 0 ? fmt(u.conta) : ""}</td><td>${u.undone_at?'<span class="pill mute">Desfeito</span>':`<button class="btn sm ghost" data-undo="${u.id}">Desfazer</button>`}</td></tr>`).join("") || '<tr><td colspan="8" class="muted">Nenhum uso ainda.</td></tr>'}</tbody></table></div>`;
   }
   if (S.tab === "remind") {
     const today = new Date(); const days = d => Math.ceil((new Date(d+"T12:00") - today)/864e5);
@@ -298,8 +298,8 @@ $("#zip").onclick = async () => {
 
 $("#export").onclick = () => {
   const d = new Date().toISOString().slice(0,10);
-  if (S.tab === "uses") return downloadCSV(`usos-${d}.csv`, [["Quando","Unidade","Atendente","Código","Cliente","Valor","Cortesia","Bônus","Mesa","Desfeito"],
-    ...S.uses.map(u=>[dtY(u.created_at),u.unit,u.atendente,u.vouchers?.code,u.vouchers?.nome,String(u.valor).replace(".",","),u.cortesia_item,u.bonus?"sim":"",u.comanda,u.undone_at?"sim":""])]);
+  if (S.tab === "uses") return downloadCSV(`usos-${d}.csv`, [["Quando","Unidade","Atendente","Código","Cliente","Valor","Cortesia","Bônus","Mesa","Conta","Desfeito"],
+    ...S.uses.map(u=>[dtY(u.created_at),u.unit,u.atendente,u.vouchers?.code,u.vouchers?.nome,String(u.valor).replace(".",","),u.cortesia_item,u.bonus?"sim":"",u.comanda,u.conta!=null?String(u.conta).replace(".",","):"",u.undone_at?"sim":""])]);
   if (S.tab === "vouchers" || S.tab === "remind") return downloadCSV(`vales-${d}.csv`, [["Código","Cliente","Telefone","Saldo","Cortesia","Bônus usado","Validade","Status","Pedido"],
     ...S.vouchers.map(v=>[v.code,v.nome,v.telefone,String(v.saldo).replace(".",","),v.cortesia_item,v.bonus_day||"",v.expires_on,v.status,v.order_id])]);
   const list = S.tab === "pend" ? S.orders.filter(o=>o.status==="pendente") : S.orders;
