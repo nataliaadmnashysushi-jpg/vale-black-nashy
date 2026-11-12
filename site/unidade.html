@@ -252,10 +252,12 @@ function done(nv, what, com, desc, rest, next){
     <span class="pill ok">Registrado</span>
     <b style="font-weight:500">${esc(nv.code)} · ${esc(nv.nome)}</b>
     <p class="small" style="margin:0">${esc(what)} · mesa ${esc(com)}</p>
-    <div class="caixa"><span>Falta pagar (cobrar no caixa):</span><b>${fmt(rest || 0)}</b><span>Saiu ${what.startsWith("Bônus") ? "do bônus" : "do vale"}: ${fmt(desc || 0)} · escreva ${esc(nv.code)} na observação da conta</span></div>
+    <div class="caixa">${rest > 0
+      ? `<span>Cobre do cliente o restante, na maquininha ou em dinheiro:</span><b>${fmt(rest)}</b>`
+      : `<span>Nada a cobrar:</span><b>conta paga</b>`}<span>Saiu ${what.startsWith("Bônus") ? "do bônus" : "do vale"}: ${fmt(desc || 0)} · escreva ${esc(nv.code)} na observação da conta</span></div>
     ${what.startsWith("Bônus") ? "" : `<p class="small" style="margin:0">Saldo que ficou no vale: <b>${fmt(nv.saldo)}</b></p>`}
-    ${next && rest > 0 ? `<p class="small" style="margin:0">Mais alguém desta conta tem vale ou bônus?</p><button class="btn ghost" type="button" id="more">Sim: pagar os ${fmt(rest)} que faltam com outro vale ou bônus</button>` : ""}
-    <button class="btn" type="button" id="next">Validar vale de outra conta</button>
+    ${next && rest > 0 ? `<p class="small" style="margin:0">Antes de cobrar: mais alguém desta conta tem vale ou bônus?</p><button class="btn ghost" type="button" id="more">Sim: pagar os ${fmt(rest)} que faltam com outro vale ou bônus</button>` : ""}
+    <button class="btn" type="button" id="next">${rest > 0 ? `Cobrei os ${fmt(rest)} · validar outro vale` : "Concluir · validar outro vale"}</button>
     <button class="btn ghost sm" type="button" id="again" style="align-self:center">Abrir este vale de novo (corrigir ou desfazer)</button>
   </div>`;
   $("#next").onclick = clearScreen;
