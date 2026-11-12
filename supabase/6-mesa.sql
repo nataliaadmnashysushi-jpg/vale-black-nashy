@@ -4,12 +4,35 @@
 --    mais bônus nem vale (o bloqueio barrava o cliente seguinte da mesa).
 --    A regra da mesma compra (vale e bônus nunca no mesmo dia) continua igual,
 --    presa ao código do vale.
+-- 3) O bônus só libera depois que o crédito do próprio vale foi usado num dia
+--    anterior (bônus = próxima visita). Assim ninguém usa bônus na primeira visita.
 -- 2) O sistema guarda o valor total da conta, para o segundo vale da mesma mesa
 --    não precisar digitar de novo.
 -- Pode rodar mais de uma vez sem problema.
 
 alter table redemptions add column if not exists conta numeric(10,2);
 drop function if exists redeem(text, numeric, text, text, boolean, text, text);
+
+create or replace function bonus_block_reason(v vouchers, d date) returns text
+language plpgsql stable set search_path = public as $$
+begin
+  if v.status <> 'ativo' then return 'Vale cancelado.'; end if;
+  if v.bonus_day is not null then return 'Bônus já usado.'; end if;
+  if d > v.bonus_expires_on then return 'Bônus vencido.'; end if;
+  if v.last_vale_day = d or v.cortesia_day = d then return 'O vale foi usado hoje. O bônus fica para outra visita.'; end if;
+  if exists (select 1 from redemptions r join vouchers w on w.id = r.voucher_id
+             where w.order_id = v.order_id and r.day = d and r.valor > 0 and r.undone_at is null) then
+    return 'Um vale desta mesma compra foi usado hoje. O bônus fica para outra visita.';
+  end if;
+  -- bônus = próxima visita: só libera depois que ESTE vale foi usado num dia anterior
+  if not exists (select 1 from redemptions r where r.voucher_id = v.id and r.day < d
+                 and r.valor > 0 and r.undone_at is null) then
+    return 'O bônus libera na próxima visita, depois que o crédito deste vale for usado.';
+  end if;
+  if extract(isodow from d) > 4 then return 'Bônus só de segunda a quinta.'; end if;
+  if exists (select 1 from holidays where day = d) then return 'Bônus não vale em feriado.'; end if;
+  return null;
+end $$;
 
 create or replace function redeem(p_code text, p_valor numeric, p_cort_tipo text, p_cort_item text,
                                   p_bonus boolean, p_comanda text, p_atendente text, p_conta numeric default null)
