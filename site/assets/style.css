@@ -125,3 +125,8 @@ td{padding:12px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
 .caixa{display:flex;flex-direction:column;gap:2px;background:var(--surface2);border:1px solid var(--gold);border-radius:10px;padding:12px 14px}
 .caixa b{font-size:20px;font-weight:600;color:var(--fg)}
 .caixa span{color:var(--muted);font-size:13px}
+
+.chainbox{border:2px solid var(--gold);border-radius:12px;padding:12px 14px;background:var(--surface2);gap:4px}
+.chainbox b{font-size:17px;font-weight:600}
+.chainbox span{color:var(--muted);font-size:13px}
+.chainbox a{font-size:14px;margin-top:4px}

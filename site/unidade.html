@@ -105,6 +105,8 @@ function normCode(t){
   return x.length === 5 ? "NSH-" + x : String(t||"").trim().toUpperCase();
 }
 async function findVoucher(code){
+  // Conta junta esquecida aberta: depois de 5 minutos, o próximo vale volta a ser conta nova.
+  if (chain && Date.now() - chain.at > 5*60*1000) { chain = null; toast("Passaram 5 minutos: este vale entra como conta nova."); }
   const out = $("#result"); code = normCode(code);
   if (!code) return toast("Digite o código do vale.");
   out.innerHTML = '<p class="muted">Buscando…</p>';
@@ -163,8 +165,8 @@ function render(v){
     const fc = $("#c-conta").closest(".field"); fc.hidden = true;
     fc.insertAdjacentHTML("afterend", `<div class="field"><label>Falta pagar nesta conta</label><input value="${fmt(chain.conta - chain.paid)}" readonly></div>`);
     cb.checked = false; if (!cv.disabled) cv.checked = true; else if (!cb.disabled) cb.checked = true; sync();
-    const note = $("#comNote"); note.hidden = false;
-    note.innerHTML = `<span class="small"><b>Mesma conta da mesa ${esc(chain.com)}</b>: total ${fmt(chain.conta)}, já pago com ${esc(chain.codes.join(", "))}: ${fmt(chain.paid)}. <b>Falta ${fmt(chain.conta - chain.paid)}.</b></span><a href="#" id="chainOff" class="small">Não é a mesma conta</a>`;
+    // Aviso grande no topo: este vale vai pagar o resto de uma conta já começada.
+    $("#use").insertAdjacentHTML("afterbegin", `<div class="chainbox stack"><b>Mesma conta da mesa ${esc(chain.com)}</b><span>Total ${fmt(chain.conta)} · já pago com ${esc(chain.codes.join(", "))}: ${fmt(chain.paid)}</span><b>Falta ${fmt(chain.conta - chain.paid)}</b><a href="#" id="chainOff">Não é dessa conta? Toque aqui</a></div>`);
     $("#chainOff").onclick = e => { e.preventDefault(); chain = null; render(v); };
   }
   const calc = () => { const pt = chain ? chain.paid : 0, t = parseMoney($("#c-conta").value), f = Math.max(t - pt, 0), bo = cb.checked, pg = bo ? Math.min(f, 50) : Math.min(f, Number(v.saldo));
@@ -203,7 +205,7 @@ function review(v){
   if (cc && item.length < 2) return toast("Escreva qual drink ou sobremesa o cliente escolheu.");
   const parts = []; if (cv) parts.push("Vale " + fmt(val)); if (cc) parts.push("cortesia " + item); if (cb) parts.push("Bônus R$ 50,00");
   const desc = cb ? Math.min(50, falta) : val, rest = Math.max(falta - desc, 0);
-  $("#confirm").innerHTML = `<div class="card confirm stack"><b style="font-weight:500">Confirmar no vale ${esc(v.code)}?</b>
+  $("#confirm").innerHTML = `<div class="card confirm stack"><b style="font-weight:500">Confirmar no vale ${esc(v.code)}?</b>${pt > 0 ? `<span class="pill warn" style="align-self:flex-start">Mesma conta da mesa ${esc(chain.com)}</span>` : ""}
     <p>${esc(parts.join(" + "))}</p>
     <div class="caixa"><span>Falta pagar (cobrar no caixa):</span><b>${fmt(rest)}</b><span>Sai ${cb ? "do bônus" : "do vale"}: ${fmt(desc)}</span></div>
     <p class="small">Conta ${fmt(conta)}${pt > 0 ? ` · <b>mesma conta</b>, já pago com ${esc(chain.codes.join(", "))}: ${fmt(pt)} · falta ${fmt(falta)}` : ""}${cv ? ` · saldo do vale fica ${fmt(Number(v.saldo) - val)}` : ""}</p>
@@ -261,7 +263,7 @@ function done(nv, what, com, desc, rest, next){
     <button class="btn ghost sm" type="button" id="again" style="align-self:center">Abrir este vale de novo (corrigir ou desfazer)</button>
   </div>`;
   $("#next").onclick = clearScreen;
-  if ($("#more")) $("#more").onclick = () => { clearScreen(); chain = next; toast(`Leia o próximo vale ou bônus. Falta ${fmt(rest)} na mesa ${next.com}.`); };
+  if ($("#more")) $("#more").onclick = () => { clearScreen(); chain = Object.assign({}, next, { at: Date.now() }); toast(`Leia o próximo vale ou bônus. Falta ${fmt(rest)} na mesa ${next.com}.`); };
   $("#again").onclick = () => findVoucher(nv.code);
   window.scrollTo(0,0); lastUse = Date.now();
 }
