@@ -159,6 +159,9 @@ function render(v){
   if (chain) {
     $("#c-com").value = chain.com; $("#c-com").readOnly = true;
     $("#c-conta").value = chain.conta.toFixed(2).replace(".", ","); $("#c-conta").readOnly = true;
+    // Na mesma conta, o atendente não vê o total de novo: vê só o que falta pagar.
+    const fc = $("#c-conta").closest(".field"); fc.hidden = true;
+    fc.insertAdjacentHTML("afterend", `<div class="field"><label>Falta pagar nesta conta</label><input value="${fmt(chain.conta - chain.paid)}" readonly></div>`);
     cb.checked = false; if (!cv.disabled) cv.checked = true; else if (!cb.disabled) cb.checked = true; sync();
     const note = $("#comNote"); note.hidden = false;
     note.innerHTML = `<span class="small"><b>Mesma conta da mesa ${esc(chain.com)}</b>: total ${fmt(chain.conta)}, já pago com ${esc(chain.codes.join(", "))}: ${fmt(chain.paid)}. <b>Falta ${fmt(chain.conta - chain.paid)}.</b></span><a href="#" id="chainOff" class="small">Não é a mesma conta</a>`;
