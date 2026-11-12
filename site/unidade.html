@@ -145,7 +145,7 @@ function render(v){
       <label class="opt ${bonusOff?"off":""}"><input type="checkbox" id="c-bonus" ${bonusOff?"disabled":""}><div><b style="font-weight:500">Bônus R$ 50</b><div class="muted small">${esc(v.bonus_bloqueio || "Só em mesa de rodízio, um bônus por rodízio. Uso único: a diferença não fica guardada.")}</div></div></label>
     </div>
     <div class="field"><label for="c-com">Número da mesa</label><input id="c-com" inputmode="numeric" autocomplete="off"><div class="card stack" id="comNote" hidden style="padding:12px"></div></div>
-    <div class="field"><label for="c-conta">Valor total da conta da mesa (com serviço)</label><input id="c-conta" inputmode="decimal" autocomplete="off" placeholder="0,00"><span class="muted tiny">Digite sempre o total da conta da mesa, mesmo que outro vale já tenha sido usado nela.</span></div>
+    <div class="field"><label for="c-conta">Valor total da conta da mesa (com serviço)</label><input id="c-conta" inputmode="decimal" autocomplete="off" placeholder="0,00"><span class="muted tiny">Confira o total no caixa antes de digitar.</span></div>
     <button class="btn" type="submit">Revisar e confirmar</button>
   </form>
   <div id="confirm"></div>
@@ -156,10 +156,19 @@ function render(v){
   cv.addEventListener("change", () => { if (cv.checked) cb.checked = false; else cc.checked = false; sync(); });
   cc.addEventListener("change", () => { if (cc.checked) { cv.checked = true; cb.checked = false; } sync(); });
   cb.addEventListener("change", () => { if (cb.checked && (cv.checked || cc.checked)) { toast("O bônus não entra na mesma conta do vale."); cb.checked = false; } });
-  const calc = () => { const pt = prev.same ? prev.total : 0, t = parseMoney($("#c-conta").value), f = Math.max(t - pt, 0), pg = Math.min(f, Number(v.saldo));
+  if (chain) {
+    $("#c-com").value = chain.com; $("#c-com").readOnly = true;
+    $("#c-conta").value = chain.conta.toFixed(2).replace(".", ","); $("#c-conta").readOnly = true;
+    cb.checked = false; cb.disabled = true; cv.checked = true; sync();
+    const note = $("#comNote"); note.hidden = false;
+    note.innerHTML = `<span class="small"><b>Mesma conta da mesa ${esc(chain.com)}</b>: total ${fmt(chain.conta)}, já pago com ${esc(chain.codes.join(", "))}: ${fmt(chain.paid)}. <b>Falta ${fmt(chain.conta - chain.paid)}.</b></span><a href="#" id="chainOff" class="small">Não é a mesma conta</a>`;
+    $("#chainOff").onclick = e => { e.preventDefault(); chain = null; render(v); };
+  }
+  const calc = () => { const pt = chain ? chain.paid : 0, t = parseMoney($("#c-conta").value), f = Math.max(t - pt, 0), pg = Math.min(f, Number(v.saldo));
     $("#calc").textContent = t > 0 ? `${pt > 0 ? `Já pago nesta conta ${fmt(pt)} · falta ${fmt(f)} · ` : ""}Vale paga ${fmt(pg)} · cliente paga ${fmt(f - pg)} · saldo fica ${fmt(Number(v.saldo) - pg)}` : "O sistema desconta do vale o valor da conta, até o saldo."; };
   $("#c-conta").addEventListener("input", calc);
-  const recheck = async () => { const el = $("#c-com"); if (!el) return; await checkComanda(el.value); if ($("#c-conta")) calc(); };
+  if (chain) calc();
+  const recheck = async () => { const el = $("#c-com"); if (!el || chain) return; await checkComanda(el.value); };
   let tmr; $("#c-com").addEventListener("input", () => { clearTimeout(tmr); tmr = setTimeout(recheck, 400); });
   $("#c-com").addEventListener("blur", recheck);
   $("#use").addEventListener("submit", e => { e.preventDefault(); review(v); });
@@ -177,27 +186,25 @@ function review(v){
   const cv=$("#c-vale").checked, cc=$("#c-cort").checked, cb=$("#c-bonus").checked;
   const com=normCom($("#c-com").value), att=$("#att").value.trim();
   const conta = parseMoney($("#c-conta").value);
-  const pt = prev.same ? prev.total : 0, falta = Math.max(conta - pt, 0);
+  const pt = chain ? chain.paid : 0, falta = Math.max(conta - pt, 0);
   const val = Math.min(falta, Number(v.saldo));
   if (att.length < 2) return toast("Escreva o seu nome no topo antes de confirmar.");
   if (!cv && !cb) return toast("Marque o que o cliente vai usar.");
   if (conta <= 0) return toast("Digite o valor total da conta da mesa.");
   if (conta > 5000) return toast("Confira o valor da conta: " + fmt(conta) + ".");
   if (!com) return toast("Digite o número da mesa.");
-  if (normCom(com) !== prev.com || prev.err) { prev.com = prev.err ? "" : prev.com; return checkComanda(com).then(() => { if (prev.err) toast("Sem conexão para conferir a mesa. Tente de novo."); else review(v); }); }
-  if (prev.total > 0 && prev.same === null) { $("#comNote").scrollIntoView({ behavior:"smooth", block:"center" }); return toast("Responda se é a mesma conta da mesa."); }
-  if (prev.same && cb && prev.vale) return toast("Nesta conta já foi usado vale. O bônus não entra na mesma conta do vale.");
-  if (prev.same && cv && prev.bonus) return toast("Nesta conta já foi usado bônus. O vale não entra na mesma conta do bônus.");
-  if (pt > 0 && falta <= 0) return toast("Essa conta já foi paga pelos vales registrados nela. Confira o valor total.");
+  if (chain && cb) return toast("O bônus não entra na mesma conta do vale.");
+  if (chain && chain.codes.includes(v.code)) return toast("Este vale já pagou parte desta conta. Use outro vale.");
+  if (pt > 0 && falta <= 0) return toast("Essa conta já foi paga pelos vales registrados nela.");
   store.set("atendente", att);
   const tipo = cc ? document.querySelector('input[name="ctipo"]:checked').value : null, item = cc ? $("#c-item").value.trim() : null;
   if (cc && item.length < 2) return toast("Escreva qual drink ou sobremesa o cliente escolheu.");
   const parts = []; if (cv) parts.push("Vale " + fmt(val)); if (cc) parts.push("cortesia " + item); if (cb) parts.push("Bônus R$ 50,00");
-  const desc = cb ? Math.min(50, falta) : val;
+  const desc = cb ? Math.min(50, falta) : val, rest = Math.max(falta - desc, 0);
   $("#confirm").innerHTML = `<div class="card confirm stack"><b style="font-weight:500">Confirmar no vale ${esc(v.code)}?</b>
     <p>${esc(parts.join(" + "))}</p>
-    <div class="caixa"><span>Lançar no caixa, na mesa ${esc(com)}:</span><b>desconto de ${fmt(desc)}</b><span class="tiny">O caixa cobra o restante da conta normalmente. Nunca lance desconto maior que este.</span></div>
-    <p class="small">Conta ${fmt(conta)}${pt > 0 ? ` · <b>mesma conta</b>, já pago com ${esc(prev.codes.join(", "))}: ${fmt(pt)} · falta ${fmt(falta)}` : ""}${prev.total > 0 && !prev.same ? ` · <b>outro cliente</b> (não desconta os vales anteriores da mesa)` : ""}${cv ? ` · cliente paga ${fmt(Math.max(falta - val, 0))} · saldo do vale fica ${fmt(Number(v.saldo) - val)}` : ""}${cb ? ` · cliente paga ${fmt(Math.max(falta - 50, 0))}` : ""}</p>
+    <div class="caixa"><span>Cobrar do cliente à parte:</span><b>${fmt(rest)}</b><span>Sai ${cb ? "do bônus" : "do vale"}: ${fmt(desc)}</span></div>
+    <p class="small">Conta da mesa ${fmt(conta)}${pt > 0 ? ` · <b>mesma conta</b>, já pago com ${esc(chain.codes.join(", "))}: ${fmt(pt)} · falta ${fmt(falta)}` : ""}${cv ? ` · saldo do vale fica ${fmt(Number(v.saldo) - val)}` : ""}</p>
     ${cb && falta < 50 ? `<p class="err">O que falta pagar é menor que R$ 50. A diferença do bônus não fica guardada. Avise o cliente antes de confirmar.</p>` : ""}
     <p class="muted small">Mesa ${esc(com)} · ${esc(att)} · cliente ${esc(v.nome)}</p>
     <div class="row" style="justify-content:flex-start"><button class="btn ok" type="button" id="yes">Confirmar</button><button class="btn ghost" type="button" id="no">Corrigir</button></div></div>`;
@@ -206,71 +213,55 @@ function review(v){
   $("#yes").onclick = async () => {
     $("#yes").disabled = true;
     try {
-      const fresh = await rpc("unit_today"); dayCache = { at: Date.now(), list: fresh };
-      if (tableTotal(fresh, normCom(com)) !== prev.total) { prev.com = ""; $("#confirm").innerHTML = ""; await checkComanda(com);
-        return toast("Acabaram de registrar outro uso nesta mesa. Responda de novo se é a mesma conta e revise."); }
       const nv = await rpc("redeem", { p_code:v.code, p_valor: cv ? val : 0, p_cort_tipo: tipo, p_cort_item: item, p_bonus: cb, p_comanda: com, p_atendente: att, p_conta: conta });
-      done(Object.assign({}, v, nv || {}), parts.join(" + "), com, desc);
+      done(Object.assign({}, v, nv || {}), parts.join(" + "), com, desc, rest, cv ? { com, conta, paid: pt + val, codes: [...(chain ? chain.codes : []), v.code] } : null);
     } catch(e) { toast(errMsg(e)); $("#yes").disabled = false; }
   };
 }
-// Mesa que já usou vale ou bônus hoje nesta unidade: o atendente diz se é a mesma conta
-// (mesmo cliente) ou outro cliente que sentou depois na mesma mesa.
-let prev = { com:"", total:0, codes:[], same:null }, dayCache = { at:0, list:[] };
+// Mesa que já usou vale ou bônus hoje nesta unidade: só um aviso. A conta é sempre tratada
+// como nova (o vale paga a conta inteira, até o saldo). Para juntar vales na mesma conta,
+// o atendente usa o botão "Pagar o restante com outro vale" logo depois do primeiro registro.
+// Assim, um erro do atendente nunca faz o cliente pagar menos do que deve.
+let chain = null, prev = { com:"" }, dayCache = { at:0, list:[] };
 function normCom(c){ return String(c || "").trim().toUpperCase().replace(/^MESA/, "").replace(/[^0-9A-Z]/g, "").replace(/^0+(?=.)/, ""); }
-function tableTotal(list, c){ return list.filter(u => normCom(u.comanda) === c && (Number(u.valor) > 0 || u.bonus)).reduce((a,u) => a + Number(u.valor) + (u.bonus ? 50 : 0), 0); }
 function minutesSince(hhmm){ const [h,m] = String(hhmm||"0:0").split(":").map(Number), n = new Date(); return n.getHours()*60 + n.getMinutes() - (h*60 + m); }
 async function checkComanda(raw){
   const c = normCom(raw), note = $("#comNote");
   if (c === prev.com && c) return;
-  prev = { com:c, total:0, codes:[], same:null, err:false };
+  prev = { com:c };
   if (note) note.hidden = true;
-  if (!c) return;
+  if (!c || !note) return;
+  let uses = [];
   try {
     if (Date.now() - dayCache.at > 15000) dayCache = { at: Date.now(), list: await rpc("unit_today") };
-    const uses = dayCache.list.filter(u => normCom(u.comanda) === c && (Number(u.valor) > 0 || u.bonus));
-    prev.total = uses.reduce((a,u) => a + Number(u.valor) + (u.bonus ? 50 : 0), 0);
-    prev.codes = [...new Set(uses.map(u => u.code))];
-    prev.vale = uses.some(u => Number(u.valor) > 0); prev.bonus = uses.some(u => u.bonus);
-    const withTotal = uses.filter(u => Number(u.conta) > 0); prev.conta = withTotal.length ? Number(withTotal[withTotal.length - 1].conta) : 0;
-    prev.desc = uses.map(u => `${u.code} às ${u.hora} (${Number(u.valor) > 0 ? "vale " + fmt(u.valor) : "bônus R$ 50,00"})`).join(", ");
-    prev.mins = uses.length ? minutesSince(uses[uses.length - 1].hora) : 0;
-  } catch {
-    prev.err = true;
-    if (note) { note.hidden = false; note.innerHTML = `<span class="small err">Não consegui conferir se esta mesa já usou vale hoje (internet?). Confira a conexão; o sistema confere de novo antes de confirmar.</span>`; }
-    return;
-  }
-  if (!note || prev.total <= 0) return;
+    uses = dayCache.list.filter(u => normCom(u.comanda) === c && (Number(u.valor) > 0 || u.bonus));
+  } catch { return; }
+  if (!uses.length) return;
+  const last = uses[uses.length - 1], mins = minutesSince(last.hora);
   note.hidden = false;
-  note.innerHTML = `<span class="small">A mesa <b>${esc(c)}</b> já usou hoje: ${esc(prev.desc)}${prev.mins >= 0 ? `, há ${prev.mins < 60 ? prev.mins + " min" : Math.floor(prev.mins/60) + "h" + String(prev.mins%60).padStart(2,"0")}` : ""}. <b>É a mesma conta?</b></span>
-    ${prev.mins > 120 ? `<span class="small gold">Faz mais de 2 horas: provavelmente é outro cliente. Confirme com o caixa.</span>` : ""}
-    <div class="row" style="gap:8px;justify-content:flex-start;flex-wrap:wrap"><button class="btn sm" type="button" id="sameYes">Sim, mesma conta</button><button class="btn sm ghost" type="button" id="sameNo">Não, é outro cliente</button></div>`;
-  const pick = same => { prev.same = same;
-    if (same && prev.conta > 0) $("#c-conta").value = prev.conta.toFixed(2).replace(".", ",");
-    if (!same && prev.conta > 0 && parseMoney($("#c-conta").value) === prev.conta) $("#c-conta").value = "";
-    note.innerHTML = `<span class="small">${same ? `Mesma conta: o sistema desconta ${fmt(prev.total)} que já foram pagos.${prev.conta > 0 ? ` O total de ${fmt(prev.conta)} já foi preenchido abaixo; confira.` : " Digite o total da conta abaixo."}` : "Outro cliente: conta nova. Digite o total abaixo."} <a href="#" id="sameUndo">Trocar</a></span>`;
-    $("#sameUndo").onclick = e => { e.preventDefault(); const r = prev.com; prev.com = ""; checkComanda($("#c-com").value || r); };
-    $("#c-conta").dispatchEvent(new Event("input")); };
-  $("#sameYes").onclick = () => pick(true); $("#sameNo").onclick = () => pick(false);
+  note.innerHTML = `<span class="small">A mesa <b>${esc(c)}</b> já usou hoje: ${esc(uses.map(u => `${u.code} às ${u.hora}`).join(", "))}${mins >= 0 ? `, há ${mins < 60 ? mins + " min" : Math.floor(mins/60) + "h" + String(mins%60).padStart(2,"0")}` : ""}.
+    Aqui a conta é tratada como <b>nova</b>: digite o total e o vale paga até o saldo dele. Se for a mesma conta de antes, digite só o que ainda falta pagar no caixa.</span>`;
 }
 
 // Depois de registrar: mostra o resumo e deixa a tela pronta para o próximo vale.
-function done(nv, what, com, desc){
+function done(nv, what, com, desc, rest, next){
   $("#code").value = ""; $("#confirm").innerHTML = ""; dayCache.at = 0;
   $("#result").innerHTML = `<div class="card stack done-card">
     <span class="pill ok">Registrado</span>
     <b style="font-weight:500">${esc(nv.code)} · ${esc(nv.nome)}</b>
     <p class="small" style="margin:0">${esc(what)} · mesa ${esc(com)}</p>
-    <div class="caixa"><span>Lançar no caixa, na mesa ${esc(com)}:</span><b>desconto de ${fmt(desc || 0)}</b><span class="tiny">Escreva ${esc(nv.code)} na observação.</span></div>
+    <div class="caixa"><span>Cobrar do cliente à parte:</span><b>${fmt(rest || 0)}</b><span>Saiu ${what.startsWith("Bônus") ? "do bônus" : "do vale"}: ${fmt(desc || 0)} · escreva ${esc(nv.code)} na observação da conta</span></div>
     <p class="small" style="margin:0">Saldo que ficou no vale: <b>${fmt(nv.saldo)}</b></p>
-    <button class="btn" type="button" id="next">Validar outro vale</button>
+    ${next && rest > 0 ? `<button class="btn" type="button" id="more">Pagar os ${fmt(rest)} com outro vale (mesma conta)</button>` : ""}
+    <button class="btn ${next && rest > 0 ? "ghost" : ""}" type="button" id="next">Validar outro vale</button>
     <button class="btn ghost sm" type="button" id="again" style="align-self:center">Abrir este vale de novo (corrigir ou desfazer)</button>
   </div>`;
   $("#next").onclick = clearScreen;
+  if ($("#more")) $("#more").onclick = () => { clearScreen(); chain = next; toast(`Leia o próximo vale. Falta ${fmt(rest)} na mesa ${next.com}.`); };
   $("#again").onclick = () => findVoucher(nv.code);
   window.scrollTo(0,0); lastUse = Date.now();
 }
-function clearScreen(){ $("#result").innerHTML = ""; $("#code").value = ""; currentCode = ""; window.scrollTo(0,0); $("#code").focus(); }
+function clearScreen(){ chain = null; prev = { com:"" }; $("#result").innerHTML = ""; $("#code").value = ""; currentCode = ""; window.scrollTo(0,0); $("#code").focus(); }
 // Se o celular ficou parado mais de 5 minutos, a tela volta limpa para o próximo cliente.
 let lastUse = Date.now();
 document.addEventListener("click", () => { lastUse = Date.now(); }, true);
