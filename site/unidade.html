@@ -130,7 +130,7 @@ function render(v){
     <div class="balance">
       <div class="card"><span>Saldo do vale</span><b class="num">${fmt(v.saldo)}</b></div>
       <div class="card"><span>Cortesia</span><b>${v.cortesia_usada ? "Usada" : "Livre"}</b></div>
-      <div class="card"><span>Bônus R$ 50</span><b>${v.bonus_usado ? "Usado" : bonusOff ? "Bloqueado" : "Livre"}</b></div>
+      <div class="card"><span>Bônus R$ 50</span><b>${v.bonus_usado ? "Usado" : bonusOff ? (/próxima visita/.test(v.bonus_bloqueio) ? "Próxima visita" : "Bloqueado") : "Livre"}</b></div>
     </div>
   </div>
   <form id="use" class="stack">
@@ -203,7 +203,7 @@ function review(v){
   $("#confirm").innerHTML = `<div class="card confirm stack"><b style="font-weight:500">Confirmar no vale ${esc(v.code)}?</b>
     <p>${esc(parts.join(" + "))}</p>
     <div class="caixa"><span>Cobrar do cliente à parte:</span><b>${fmt(rest)}</b><span>Sai ${cb ? "do bônus" : "do vale"}: ${fmt(desc)}</span></div>
-    <p class="small">Conta da mesa ${fmt(conta)}${pt > 0 ? ` · <b>mesma conta</b>, já pago com ${esc(chain.codes.join(", "))}: ${fmt(pt)} · falta ${fmt(falta)}` : ""}${cv ? ` · saldo do vale fica ${fmt(Number(v.saldo) - val)}` : ""}</p>
+    <p class="small">Conta do cliente ${fmt(conta)}${pt > 0 ? ` · <b>mesma conta</b>, já pago com ${esc(chain.codes.join(", "))}: ${fmt(pt)} · falta ${fmt(falta)}` : ""}${cv ? ` · saldo do vale fica ${fmt(Number(v.saldo) - val)}` : ""}</p>
     ${cb && falta < 50 ? `<p class="err">O que falta pagar é menor que R$ 50. A diferença do bônus não fica guardada. Avise o cliente antes de confirmar.</p>` : ""}
     <p class="muted small">Mesa ${esc(com)} · ${esc(att)} · cliente ${esc(v.nome)}</p>
     <div class="row" style="justify-content:flex-start"><button class="btn ok" type="button" id="yes">Confirmar</button><button class="btn ghost" type="button" id="no">Corrigir</button></div></div>`;
