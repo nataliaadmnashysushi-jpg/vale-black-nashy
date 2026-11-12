@@ -193,8 +193,10 @@ function review(v){
   const tipo = cc ? document.querySelector('input[name="ctipo"]:checked').value : null, item = cc ? $("#c-item").value.trim() : null;
   if (cc && item.length < 2) return toast("Escreva qual drink ou sobremesa o cliente escolheu.");
   const parts = []; if (cv) parts.push("Vale " + fmt(val)); if (cc) parts.push("cortesia " + item); if (cb) parts.push("Bônus R$ 50,00");
+  const desc = cb ? Math.min(50, falta) : val;
   $("#confirm").innerHTML = `<div class="card confirm stack"><b style="font-weight:500">Confirmar no vale ${esc(v.code)}?</b>
     <p>${esc(parts.join(" + "))}</p>
+    <div class="caixa"><span>Lançar no caixa, na mesa ${esc(com)}:</span><b>desconto de ${fmt(desc)}</b><span class="tiny">O caixa cobra o restante da conta normalmente. Nunca lance desconto maior que este.</span></div>
     <p class="small">Conta ${fmt(conta)}${pt > 0 ? ` · <b>mesma conta</b>, já pago com ${esc(prev.codes.join(", "))}: ${fmt(pt)} · falta ${fmt(falta)}` : ""}${prev.total > 0 && !prev.same ? ` · <b>outro cliente</b> (não desconta os vales anteriores da mesa)` : ""}${cv ? ` · cliente paga ${fmt(Math.max(falta - val, 0))} · saldo do vale fica ${fmt(Number(v.saldo) - val)}` : ""}${cb ? ` · cliente paga ${fmt(Math.max(falta - 50, 0))}` : ""}</p>
     ${cb && falta < 50 ? `<p class="err">O que falta pagar é menor que R$ 50. A diferença do bônus não fica guardada. Avise o cliente antes de confirmar.</p>` : ""}
     <p class="muted small">Mesa ${esc(com)} · ${esc(att)} · cliente ${esc(v.nome)}</p>
@@ -208,7 +210,7 @@ function review(v){
       if (tableTotal(fresh, normCom(com)) !== prev.total) { prev.com = ""; $("#confirm").innerHTML = ""; await checkComanda(com);
         return toast("Acabaram de registrar outro uso nesta mesa. Responda de novo se é a mesma conta e revise."); }
       const nv = await rpc("redeem", { p_code:v.code, p_valor: cv ? val : 0, p_cort_tipo: tipo, p_cort_item: item, p_bonus: cb, p_comanda: com, p_atendente: att, p_conta: conta });
-      done(Object.assign({}, v, nv || {}), parts.join(" + "), com);
+      done(Object.assign({}, v, nv || {}), parts.join(" + "), com, desc);
     } catch(e) { toast(errMsg(e)); $("#yes").disabled = false; }
   };
 }
@@ -253,12 +255,13 @@ async function checkComanda(raw){
 }
 
 // Depois de registrar: mostra o resumo e deixa a tela pronta para o próximo vale.
-function done(nv, what, com){
+function done(nv, what, com, desc){
   $("#code").value = ""; $("#confirm").innerHTML = ""; dayCache.at = 0;
   $("#result").innerHTML = `<div class="card stack done-card">
     <span class="pill ok">Registrado</span>
     <b style="font-weight:500">${esc(nv.code)} · ${esc(nv.nome)}</b>
     <p class="small" style="margin:0">${esc(what)} · mesa ${esc(com)}</p>
+    <div class="caixa"><span>Lançar no caixa, na mesa ${esc(com)}:</span><b>desconto de ${fmt(desc || 0)}</b><span class="tiny">Escreva ${esc(nv.code)} na observação.</span></div>
     <p class="small" style="margin:0">Saldo que ficou no vale: <b>${fmt(nv.saldo)}</b></p>
     <button class="btn" type="button" id="next">Validar outro vale</button>
     <button class="btn ghost sm" type="button" id="again" style="align-self:center">Abrir este vale de novo (corrigir ou desfazer)</button>
