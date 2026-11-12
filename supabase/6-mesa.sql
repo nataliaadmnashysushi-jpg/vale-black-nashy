@@ -1,8 +1,9 @@
 -- Vale Black · atualização 6 (12/11/2026)
 -- 1) A unidade registra o NÚMERO DA MESA (mesmo campo de antes).
---    Como a mesma mesa recebe outros clientes no mesmo dia, a regra "bônus e vale
---    não entram na mesma conta" passa a olhar só as últimas 2 horas daquela mesa.
---    A regra da mesma compra (vale e bônus nunca no mesmo dia) continua igual.
+--    Como a mesma mesa recebe outros clientes no mesmo dia, a mesa NÃO bloqueia
+--    mais bônus nem vale (o bloqueio barrava o cliente seguinte da mesa).
+--    A regra da mesma compra (vale e bônus nunca no mesmo dia) continua igual,
+--    presa ao código do vale.
 -- 2) O sistema guarda o valor total da conta, para o segundo vale da mesma mesa
 --    não precisar digitar de novo.
 -- Pode rodar mais de uma vez sem problema.
@@ -32,15 +33,11 @@ begin
 
   if coalesce(p_bonus,false) then
     if valor > 0 or p_cort_item is not null then raise exception 'BONUS_JUNTO_COM_VALE'; end if;
-    if exists (select 1 from redemptions x where x.unit = unit_name_now() and x.day = d and x.comanda = trim(p_comanda)
-               and x.undone_at is null and not x.bonus and x.created_at > now() - interval '2 hours') then raise exception 'COMANDA_COM_VALE'; end if;
     why := bonus_block_reason(v, d);
     if why is not null then raise exception 'BONUS_BLOQUEADO:%', why; end if;
     update vouchers set bonus_day = d where id = v.id;
   else
     if valor <= 0 and p_cort_item is null then raise exception 'NADA_SELECIONADO'; end if;
-    if exists (select 1 from redemptions x where x.unit = unit_name_now() and x.day = d and x.comanda = trim(p_comanda)
-               and x.undone_at is null and x.bonus and x.created_at > now() - interval '2 hours') then raise exception 'COMANDA_COM_BONUS'; end if;
     if d > v.expires_on then raise exception 'VALE_VENCIDO'; end if;
     if exists (select 1 from vouchers w where w.order_id = v.order_id and w.bonus_day = d) then raise exception 'BONUS_USADO_HOJE'; end if;
     if valor < 0 or valor > v.saldo then raise exception 'VALOR_ACIMA_DO_SALDO'; end if;
