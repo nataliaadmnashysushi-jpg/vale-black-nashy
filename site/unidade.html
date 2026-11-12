@@ -197,7 +197,7 @@ function review(v){
   $("#yes").onclick = async () => {
     $("#yes").disabled = true;
     try {
-      const nv = await rpc("redeem", { p_code:v.code, p_valor: cv ? val : 0, p_cort_tipo: tipo, p_cort_item: item, p_bonus: cb, p_comanda: com, p_atendente: att });
+      const nv = await rpc("redeem", { p_code:v.code, p_valor: cv ? val : 0, p_cort_tipo: tipo, p_cort_item: item, p_bonus: cb, p_comanda: com, p_atendente: att, p_conta: conta });
       done(Object.assign({}, v, nv || {}), parts.join(" + "), com);
     } catch(e) { toast(errMsg(e)); $("#yes").disabled = false; }
   };
@@ -218,13 +218,17 @@ async function checkComanda(raw){
     prev.total = uses.reduce((a,u) => a + Number(u.valor) + (u.bonus ? 50 : 0), 0);
     prev.codes = [...new Set(uses.map(u => u.code))];
     prev.vale = uses.some(u => Number(u.valor) > 0); prev.bonus = uses.some(u => u.bonus);
+    const withTotal = uses.filter(u => Number(u.conta) > 0); prev.conta = withTotal.length ? Number(withTotal[withTotal.length - 1].conta) : 0;
     prev.desc = uses.map(u => `${u.code} às ${u.hora} (${Number(u.valor) > 0 ? "vale " + fmt(u.valor) : "bônus R$ 50,00"})`).join(", ");
   } catch { /* sem conexão: segue sem o aviso */ }
   if (!note || prev.total <= 0) return;
   note.hidden = false;
   note.innerHTML = `<span class="small">A mesa <b>${esc(raw.trim())}</b> já usou hoje: ${esc(prev.desc)}. <b>É a mesma conta?</b></span>
     <div class="row" style="gap:8px;justify-content:flex-start;flex-wrap:wrap"><button class="btn sm" type="button" id="sameYes">Sim, mesma conta</button><button class="btn sm ghost" type="button" id="sameNo">Não, é outro cliente</button></div>`;
-  const pick = same => { prev.same = same; note.innerHTML = `<span class="small">${same ? `Mesma conta: o sistema desconta ${fmt(prev.total)} que já foram pagos.` : "Outro cliente: conta nova."} <a href="#" id="sameUndo">Trocar</a></span>`;
+  const pick = same => { prev.same = same;
+    if (same && prev.conta > 0) $("#c-conta").value = prev.conta.toFixed(2).replace(".", ",");
+    if (!same && prev.conta > 0 && parseMoney($("#c-conta").value) === prev.conta) $("#c-conta").value = "";
+    note.innerHTML = `<span class="small">${same ? `Mesma conta: o sistema desconta ${fmt(prev.total)} que já foram pagos.${prev.conta > 0 ? ` O total de ${fmt(prev.conta)} já foi preenchido abaixo; confira.` : " Digite o total da conta abaixo."}` : "Outro cliente: conta nova. Digite o total abaixo."} <a href="#" id="sameUndo">Trocar</a></span>`;
     $("#sameUndo").onclick = e => { e.preventDefault(); const r = prev.com; prev.com = ""; checkComanda($("#c-com").value || r); };
     $("#c-conta").dispatchEvent(new Event("input")); };
   $("#sameYes").onclick = () => pick(true); $("#sameNo").onclick = () => pick(false);

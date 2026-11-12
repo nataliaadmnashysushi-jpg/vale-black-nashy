@@ -1,11 +1,17 @@
--- Vale Black · atualização 6 (11/11/2026)
--- A unidade agora registra o NÚMERO DA MESA (mesmo campo de antes).
--- Como a mesma mesa recebe outros clientes no mesmo dia, a regra "bônus e vale
--- não entram na mesma conta" passa a olhar só as últimas 2 horas daquela mesa.
--- Nada mais muda. Pode rodar mais de uma vez sem problema.
+-- Vale Black · atualização 6 (12/11/2026)
+-- 1) A unidade registra o NÚMERO DA MESA (mesmo campo de antes).
+--    Como a mesma mesa recebe outros clientes no mesmo dia, a regra "bônus e vale
+--    não entram na mesma conta" passa a olhar só as últimas 2 horas daquela mesa.
+--    A regra da mesma compra (vale e bônus nunca no mesmo dia) continua igual.
+-- 2) O sistema guarda o valor total da conta, para o segundo vale da mesma mesa
+--    não precisar digitar de novo.
+-- Pode rodar mais de uma vez sem problema.
+
+alter table redemptions add column if not exists conta numeric(10,2);
+drop function if exists redeem(text, numeric, text, text, boolean, text, text);
 
 create or replace function redeem(p_code text, p_valor numeric, p_cort_tipo text, p_cort_item text,
-                                  p_bonus boolean, p_comanda text, p_atendente text)
+                                  p_bonus boolean, p_comanda text, p_atendente text, p_conta numeric default null)
 returns json language plpgsql security definer set search_path = public as $$
 declare v vouchers; d date := today_br(); unit text; why text; valor numeric := round(coalesce(p_valor,0),2);
 begin
@@ -52,8 +58,24 @@ begin
     where id = v.id;
   end if;
 
-  insert into redemptions (voucher_id, day, unit, atendente, comanda, valor, cortesia_tipo, cortesia_item, bonus)
+  insert into redemptions (voucher_id, day, unit, atendente, comanda, valor, cortesia_tipo, cortesia_item, bonus, conta)
   values (v.id, d, unit, trim(p_atendente), trim(p_comanda), valor,
-          case when p_cort_item is not null then p_cort_tipo end, p_cort_item, coalesce(p_bonus,false));
+          case when p_cort_item is not null then p_cort_tipo end, p_cort_item, coalesce(p_bonus,false),
+          case when p_conta > 0 and p_conta < 100000 then round(p_conta,2) end);
   return find_voucher(v.code);
 end $$;
+
+create or replace function unit_today() returns json
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if coalesce(my_role(),'') not in ('unit','admin') then raise exception 'SEM_PERMISSAO'; end if;
+  return (select coalesce(json_agg(json_build_object(
+      'hora', to_char(r.created_at at time zone 'America/Sao_Paulo','HH24:MI'),
+      'code', v.code, 'comanda', r.comanda, 'atendente', r.atendente, 'valor', r.valor,
+      'cortesia', r.cortesia_item, 'bonus', r.bonus, 'conta', r.conta) order by r.created_at), '[]')
+    from redemptions r join vouchers v on v.id = r.voucher_id
+    where r.unit = unit_name_now() and r.day = today_br() and r.undone_at is null);
+end $$;
+
+revoke all on function redeem, unit_today from public;
+grant execute on function redeem, unit_today to authenticated;
