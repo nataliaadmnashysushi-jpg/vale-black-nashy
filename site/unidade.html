@@ -251,8 +251,8 @@ function done(nv, what, com, desc, rest, next){
     <p class="small" style="margin:0">${esc(what)} · mesa ${esc(com)}</p>
     <div class="caixa"><span>Cobrar do cliente à parte:</span><b>${fmt(rest || 0)}</b><span>Saiu ${what.startsWith("Bônus") ? "do bônus" : "do vale"}: ${fmt(desc || 0)} · escreva ${esc(nv.code)} na observação da conta</span></div>
     <p class="small" style="margin:0">Saldo que ficou no vale: <b>${fmt(nv.saldo)}</b></p>
-    ${next && rest > 0 ? `<button class="btn" type="button" id="more">Pagar os ${fmt(rest)} com outro vale ou bônus (mesma conta)</button>` : ""}
-    <button class="btn ${next && rest > 0 ? "ghost" : ""}" type="button" id="next">Validar outro vale</button>
+    ${next && rest > 0 ? `<button class="btn" type="button" id="more">Pagar os ${fmt(rest)} que faltam com outro vale ou bônus (mesma conta)</button>` : ""}
+    <button class="btn ${next && rest > 0 ? "ghost" : ""}" type="button" id="next">Validar vale de outra conta</button>
     <button class="btn ghost sm" type="button" id="again" style="align-self:center">Abrir este vale de novo (corrigir ou desfazer)</button>
   </div>`;
   $("#next").onclick = clearScreen;
