@@ -145,7 +145,7 @@ function render(v){
       <label class="opt ${bonusOff?"off":""}"><input type="checkbox" id="c-bonus" ${bonusOff?"disabled":""}><div><b style="font-weight:500">Bônus R$ 50</b><div class="muted small">${esc(v.bonus_bloqueio || "Só em mesa de rodízio, um bônus por rodízio. Uso único: a diferença não fica guardada.")}</div></div></label>
     </div>
     <div class="field"><label for="c-com">Número da mesa</label><input id="c-com" inputmode="numeric" autocomplete="off"><div class="card stack" id="comNote" hidden style="padding:12px"></div></div>
-    <div class="field"><label for="c-conta">Valor total da conta da mesa (com serviço)</label><input id="c-conta" inputmode="decimal" autocomplete="off" placeholder="0,00"><span class="muted tiny">Confira o total no caixa antes de digitar.</span></div>
+    <div class="field"><label for="c-conta">Valor da conta a pagar com o vale (com serviço)</label><input id="c-conta" inputmode="decimal" autocomplete="off" placeholder="0,00"><span class="muted tiny">Confira no caixa antes de digitar. Conta junta: o total da mesa. Conta dividida: só a parte do cliente do vale.</span></div>
     <button class="btn" type="submit">Revisar e confirmar</button>
   </form>
   <div id="confirm"></div>
@@ -190,7 +190,7 @@ function review(v){
   const val = Math.min(falta, Number(v.saldo));
   if (att.length < 2) return toast("Escreva o seu nome no topo antes de confirmar.");
   if (!cv && !cb) return toast("Marque o que o cliente vai usar.");
-  if (conta <= 0) return toast("Digite o valor total da conta da mesa.");
+  if (conta <= 0) return toast("Digite o valor da conta (da mesa toda, ou só a parte do cliente se a conta for dividida).");
   if (conta > 5000) return toast("Confira o valor da conta: " + fmt(conta) + ".");
   if (!com) return toast("Digite o número da mesa.");
   if (chain && chain.codes.includes(v.code)) return toast("Este vale já pagou parte desta conta. Use outro vale.");
