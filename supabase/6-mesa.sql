@@ -25,13 +25,35 @@ begin
     return 'Um vale desta mesma compra foi usado hoje. O bônus fica para outra visita.';
   end if;
   -- bônus = próxima visita: só libera depois que ESTE vale foi usado num dia anterior
+  -- (pelo menos 6 horas antes, para a virada da meia-noite na mesma refeição não liberar)
   if not exists (select 1 from redemptions r where r.voucher_id = v.id and r.day < d
+                 and r.created_at < now() - interval '6 hours'
                  and r.valor > 0 and r.undone_at is null) then
     return 'O bônus libera na próxima visita, depois que o crédito deste vale for usado.';
   end if;
   if extract(isodow from d) > 4 then return 'Bônus só de segunda a quinta.'; end if;
   if exists (select 1 from holidays where day = d) then return 'Bônus não vale em feriado.'; end if;
   return null;
+end $$;
+
+create or replace function voucher_public(p_token text) returns json
+language plpgsql stable security definer set search_path = public as $$
+declare v vouchers;
+begin
+  select * into v from vouchers where token = p_token;
+  if not found then return null; end if;
+  return json_build_object(
+    'code', v.code, 'nome', split_part(v.nome,' ',1), 'saldo', v.saldo, 'status', v.status,
+    'expires_on', v.expires_on, 'bonus_expires_on', v.bonus_expires_on,
+    'cortesia_usada', v.cortesia_day is not null, 'cortesia_item', v.cortesia_item,
+    'bonus_usado', v.bonus_day is not null,
+    'bonus_espera', not exists (select 1 from redemptions r where r.voucher_id = v.id and r.day < today_br()
+                                and r.valor > 0 and r.undone_at is null),
+    'usos', (select coalesce(json_agg(json_build_object(
+        'quando', to_char(r.created_at at time zone 'America/Sao_Paulo','DD/MM/YYYY HH24:MI'),
+        'unidade', r.unit, 'comanda', r.comanda, 'valor', r.valor,
+        'cortesia', r.cortesia_item, 'bonus', r.bonus) order by r.created_at desc), '[]')
+      from redemptions r where r.voucher_id = v.id and r.undone_at is null));
 end $$;
 
 create or replace function redeem(p_code text, p_valor numeric, p_cort_tipo text, p_cort_item text,

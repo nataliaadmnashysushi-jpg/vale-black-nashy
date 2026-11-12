@@ -102,7 +102,7 @@ const titleCase = s => String(s||"").toLowerCase().replace(/(^|\s)(\S)/g,(m,a,b)
         <div class="perks">
           <div class="perk"><b>Vale de R$ 200</b><span>Vale como dinheiro em qualquer item da comanda</span><em class="${!semSaldo && !cancelled ? "" : "used"}">${semSaldo ? "Usado" : cancelled ? "Indisponível" : "Disponível"}</em></div>
           <div class="perk"><b>Cortesia</b><span>Qualquer drink ou sobremesa do cardápio, na visita em que usar o vale</span><em class="${v.cortesia_usada || semSaldo || cancelled ? "used" : ""}">${v.cortesia_usada ? "Usada" : semSaldo || cancelled ? "Indisponível" : "Disponível"}</em></div>
-          <div class="perk"><b>Bônus de R$ 50</b><span>Em outra visita, numa mesa de rodízio, de segunda a quinta, exceto feriados</span><em class="${v.bonus_usado || cancelled ? "used" : ""}">${v.bonus_usado ? "Usado" : cancelled ? "Indisponível" : "Disponível"}</em></div>
+          <div class="perk"><b>Bônus de R$ 50</b><span>Na visita seguinte à que usar o vale, numa mesa de rodízio, de segunda a quinta, exceto feriados</span><em class="${v.bonus_usado || cancelled ? "used" : ""}">${v.bonus_usado ? "Usado" : cancelled ? "Indisponível" : v.bonus_espera ? "Na próxima visita" : "Disponível"}</em></div>
         </div>
         ${cancelled ? "" : `
         <div class="use">
