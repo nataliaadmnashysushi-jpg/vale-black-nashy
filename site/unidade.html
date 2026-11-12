@@ -242,7 +242,7 @@ async function checkComanda(raw){
   const last = uses[uses.length - 1], mins = minutesSince(last.hora);
   note.hidden = false;
   note.innerHTML = `<span class="small">A mesa <b>${esc(c)}</b> já usou hoje: ${esc(uses.map(u => `${u.code} às ${u.hora}`).join(", "))}${mins >= 0 ? `, há ${mins < 60 ? mins + " min" : Math.floor(mins/60) + "h" + String(mins%60).padStart(2,"0")}` : ""}.
-    Aqui a conta é tratada como <b>nova</b>: digite o total e o vale paga até o saldo dele. Se for a mesma conta de antes, digite só o que ainda falta pagar no caixa.</span>`;
+    Tudo certo, pode seguir: esta é uma <b>conta nova</b> (por exemplo, conta dividida). Digite o consumo deste cliente. Se for a mesma conta de antes, digite só o que ainda falta pagar no caixa.</span>`;
 }
 
 // Depois de registrar: mostra o resumo e deixa a tela pronta para o próximo vale.
