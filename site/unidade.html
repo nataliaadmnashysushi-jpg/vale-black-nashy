@@ -142,7 +142,7 @@ function render(v){
         <div class="sub" id="cortSub" hidden>
           <div class="seg"><label><input type="radio" name="ctipo" value="Drink" checked>Drink</label><label><input type="radio" name="ctipo" value="Sobremesa">Sobremesa</label></div>
           <div class="field"><label for="c-item">Qual item do cardápio</label><input id="c-item" autocomplete="off" placeholder="Ex.: nome do drink ou da sobremesa"></div></div></div></label>
-      <label class="opt ${bonusOff?"off":""}"><input type="checkbox" id="c-bonus" ${bonusOff?"disabled":""}><div><b style="font-weight:500">Bônus R$ 50</b><div class="muted small">${esc(v.bonus_bloqueio || "Só em mesa de rodízio, um bônus por rodízio. Uso único: a diferença não fica guardada.")}</div></div></label>
+      <label class="opt ${bonusOff?"off":""}"><input type="checkbox" id="c-bonus" ${bonusOff?"disabled":""}><div><b style="font-weight:500">Bônus R$ 50</b><div class="muted small">${esc(v.bonus_bloqueio || "Só em mesa de rodízio, um bônus para cada rodízio da conta. Uso único: se faltar menos de R$ 50, a diferença não fica guardada.")}</div></div></label>
     </div>
     <div class="field"><label for="c-com">Número da mesa</label><input id="c-com" inputmode="numeric" autocomplete="off"><div class="card stack" id="comNote" hidden style="padding:12px"></div></div>
     <div class="field"><label for="c-conta">Valor da conta do cliente (com serviço)</label><input id="c-conta" inputmode="decimal" autocomplete="off" placeholder="0,00"><span class="muted tiny">Confira no caixa antes de digitar. Conta junta: o total da mesa. Conta dividida: só o consumo de quem tem o vale.</span></div>
@@ -168,7 +168,7 @@ function render(v){
     $("#chainOff").onclick = e => { e.preventDefault(); chain = null; render(v); };
   }
   const calc = () => { const pt = chain ? chain.paid : 0, t = parseMoney($("#c-conta").value), f = Math.max(t - pt, 0), bo = cb.checked, pg = bo ? Math.min(f, 50) : Math.min(f, Number(v.saldo));
-    $("#calc").textContent = t > 0 ? `${pt > 0 ? `Já pago nesta conta ${fmt(pt)} · falta ${fmt(f)} · ` : ""}${bo ? "Bônus" : "Vale"} paga ${fmt(pg)} · cliente paga ${fmt(f - pg)}${bo ? "" : ` · saldo fica ${fmt(Number(v.saldo) - pg)}`}` : "O sistema desconta do vale o valor da conta, até o saldo."; };
+    $("#calc").textContent = t > 0 ? `${pt > 0 ? `Já pago nesta conta ${fmt(pt)} · falta ${fmt(f)} · ` : ""}${bo ? "Bônus" : "Vale"} paga ${fmt(pg)} · cobrar à parte ${fmt(f - pg)}${bo ? "" : ` · saldo fica ${fmt(Number(v.saldo) - pg)}`}` : "O sistema desconta do vale o valor da conta, até o saldo."; };
   $("#c-conta").addEventListener("input", calc); [cv, cc, cb].forEach(x => x.addEventListener("change", calc));
   if (chain) calc();
   const recheck = async () => { const el = $("#c-com"); if (!el || chain) return; await checkComanda(el.value); };
@@ -205,7 +205,7 @@ function review(v){
   const desc = cb ? Math.min(50, falta) : val, rest = Math.max(falta - desc, 0);
   $("#confirm").innerHTML = `<div class="card confirm stack"><b style="font-weight:500">Confirmar no vale ${esc(v.code)}?</b>
     <p>${esc(parts.join(" + "))}</p>
-    <div class="caixa"><span>Cobrar do cliente à parte:</span><b>${fmt(rest)}</b><span>Sai ${cb ? "do bônus" : "do vale"}: ${fmt(desc)}</span></div>
+    <div class="caixa"><span>Falta pagar (cobrar no caixa):</span><b>${fmt(rest)}</b><span>Sai ${cb ? "do bônus" : "do vale"}: ${fmt(desc)}</span></div>
     <p class="small">Conta ${fmt(conta)}${pt > 0 ? ` · <b>mesma conta</b>, já pago com ${esc(chain.codes.join(", "))}: ${fmt(pt)} · falta ${fmt(falta)}` : ""}${cv ? ` · saldo do vale fica ${fmt(Number(v.saldo) - val)}` : ""}</p>
     ${cb && falta < 50 ? `<p class="err">O que falta pagar é menor que R$ 50. A diferença do bônus não fica guardada. Avise o cliente antes de confirmar.</p>` : ""}
     <p class="muted small">Mesa ${esc(com)} · ${esc(att)} · cliente ${esc(v.nome)}</p>
@@ -252,10 +252,10 @@ function done(nv, what, com, desc, rest, next){
     <span class="pill ok">Registrado</span>
     <b style="font-weight:500">${esc(nv.code)} · ${esc(nv.nome)}</b>
     <p class="small" style="margin:0">${esc(what)} · mesa ${esc(com)}</p>
-    <div class="caixa"><span>Cobrar do cliente à parte:</span><b>${fmt(rest || 0)}</b><span>Saiu ${what.startsWith("Bônus") ? "do bônus" : "do vale"}: ${fmt(desc || 0)} · escreva ${esc(nv.code)} na observação da conta</span></div>
-    <p class="small" style="margin:0">Saldo que ficou no vale: <b>${fmt(nv.saldo)}</b></p>
-    ${next && rest > 0 ? `<button class="btn" type="button" id="more">Pagar os ${fmt(rest)} que faltam com outro vale ou bônus (mesma conta)</button>` : ""}
-    <button class="btn ${next && rest > 0 ? "ghost" : ""}" type="button" id="next">Validar vale de outra conta</button>
+    <div class="caixa"><span>Falta pagar (cobrar no caixa):</span><b>${fmt(rest || 0)}</b><span>Saiu ${what.startsWith("Bônus") ? "do bônus" : "do vale"}: ${fmt(desc || 0)} · escreva ${esc(nv.code)} na observação da conta</span></div>
+    ${what.startsWith("Bônus") ? "" : `<p class="small" style="margin:0">Saldo que ficou no vale: <b>${fmt(nv.saldo)}</b></p>`}
+    ${next && rest > 0 ? `<p class="small" style="margin:0">Mais alguém desta conta tem vale ou bônus?</p><button class="btn ghost" type="button" id="more">Sim: pagar os ${fmt(rest)} que faltam com outro vale ou bônus</button>` : ""}
+    <button class="btn" type="button" id="next">Validar vale de outra conta</button>
     <button class="btn ghost sm" type="button" id="again" style="align-self:center">Abrir este vale de novo (corrigir ou desfazer)</button>
   </div>`;
   $("#next").onclick = clearScreen;
