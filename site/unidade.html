@@ -129,6 +129,8 @@ function render(v){
   out.innerHTML = `
   <div class="card stack">
     <div class="row"><div><b class="num" style="font-weight:500;white-space:nowrap">${esc(v.code)}</b><div class="muted small">${esc(v.nome)}</div></div>${pill}</div>
+    <p class="small" style="margin:0"><b style="font-weight:500">Hoje pode usar:</b> ${esc(cancelled ? "nada (vale " + (v.vencido ? "vencido" : "cancelado") + ")" : [!valeOff ? "vale até " + fmt(v.saldo) : "", !cortOff ? "cortesia" : "", !bonusOff ? "bônus R$ 50" : ""].filter(Boolean).join(" + ") || "nada hoje")}</p>
+    <p class="muted tiny" style="margin:0">Só consulta: nada é descontado até tocar em Confirmar. Pode conferir na chegada do cliente.</p>
     <div class="balance">
       <div class="card"><span>Saldo do vale</span><b class="num">${fmt(v.saldo)}</b></div>
       <div class="card"><span>Cortesia</span><b>${v.cortesia_usada ? "Usada" : "Livre"}</b></div>
