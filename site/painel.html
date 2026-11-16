@@ -202,7 +202,7 @@ async function loadCopias(){
 function voucherMessage(nome, vales){
   const first = nome.split(" ")[0];
   const links = vales.map(v=>`${v.code}: ${siteUrl()}vale.html?t=${v.token}`).join("\n");
-  return `Oi, ${first}! Seu vale exclusivo Black November do Nashy está aprovado.\n\nToque no link para abrir o seu cartão virtual:\n${links}\n\nMostre o cartão no caixa. Na mesma conta em que usar o vale, escolha a sua cortesia: qualquer drink ou sobremesa do cardápio. O bônus de R$ 50 fica para outra visita, de segunda a quinta, exceto feriados. Validade de 3 meses.\n\nTe esperamos!`;
+  return `Oi, ${first}! Seu vale exclusivo Black November do Nashy está aprovado.\n\nToque no link para abrir o seu cartão virtual:\n${links}\n\nMostre o cartão no caixa. Na mesma conta em que usar o vale, escolha a sua cortesia: qualquer drink ou sobremesa do cardápio. O bônus de R$ 50 fica para outra visita, de segunda a quinta, exceto feriados. Validade de 12 meses.\n\nTe esperamos!`;
 }
 function sendModal(o, vales){
   const msg = voucherMessage(o.nome, vales);
