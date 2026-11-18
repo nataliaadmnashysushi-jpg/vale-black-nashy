@@ -45,7 +45,7 @@ function errMsg(e){
   const m = (e && (e.message || e.msg)) || String(e);
   const [key, extra] = m.split(":");
   if (key === "BONUS_BLOQUEADO") return m.slice(16);
-  if (key === "ESGOTADO_HOJE" && Number(extra) > 0) return `Restam só ${extra} vale(s) neste lote. Diminua a quantidade.`;
+  if (key === "ESGOTADO_HOJE" && Number(extra) > 0) return "Não temos vales suficientes neste lote para essa quantidade. Diminua a quantidade.";
   if (ERRORS[key]) return ERRORS[key];
   if (/Failed to fetch|NetworkError/i.test(m)) return "Sem conexão. Confira a internet e tente de novo.";
   if (/Invalid login/i.test(m)) return "Senha incorreta.";
